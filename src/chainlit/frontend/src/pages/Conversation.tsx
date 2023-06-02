@@ -25,8 +25,10 @@ const ConversationQuery = gql`
         prompt
         llmSettings
         authorIsUser
+        createdAt
       }
       elements {
+        id
         type
         name
         url

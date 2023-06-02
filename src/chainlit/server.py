@@ -1,10 +1,13 @@
+import mimetypes
+
+mimetypes.add_type("application/javascript", ".js")
+mimetypes.add_type("text/css", ".css")
+
 import os
 import json
 from flask_cors import CORS
 from flask import Flask, request, send_from_directory
 from flask_socketio import SocketIO, ConnectionRefusedError
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 from chainlit.config import config
 from chainlit.lc.utils import run_langchain_agent
 from chainlit.session import Session, sessions
@@ -13,6 +16,7 @@ from chainlit.client import CloudClient
 from chainlit.sdk import Chainlit
 from chainlit.markdown import get_markdown_str
 from chainlit.action import Action
+from chainlit.message import Message, ErrorMessage
 from chainlit.telemetry import trace, trace_event
 from chainlit.logger import logger
 
@@ -21,14 +25,40 @@ build_dir = os.path.join(root_dir, "frontend/dist")
 
 app = Flask(__name__, static_folder=build_dir)
 CORS(app)
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode="gevent")
-
-limiter = Limiter(
-    get_remote_address,
-    app=app,
-    default_limits=[],
-    storage_uri="memory://",
+socketio = SocketIO(
+    app,
+    cors_allowed_origins="*",
+    async_mode="gevent",
+    max_http_buffer_size=1000000 * 100,
 )
+
+
+def inject_html_tags():
+    PLACEHOLDER = "<!-- TAG INJECTION PLACEHOLDER -->"
+
+    default_url = "https://github.com/Chainlit/chainlit"
+    url = config.github or default_url
+
+    tags = f"""<title>{config.chatbot_name}</title>
+    <meta name="description" content="{config.description}">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="{config.chatbot_name}">
+    <meta property="og:description" content="{config.description}">
+    <meta property="og:image" content="https://chainlit-cloud.s3.eu-west-3.amazonaws.com/logo/chainlit_banner.png">
+    <meta property="og:url" content="{url}">"""
+
+    orig_index_html_file_path = os.path.join(app.static_folder, "index.html")
+    injected_index_html_file_path = os.path.join(app.static_folder, "_index.html")
+
+    with open(orig_index_html_file_path, "r", encoding="utf-8") as f:
+        content = f.read()
+    content = content.replace(PLACEHOLDER, tags)
+
+    with open(injected_index_html_file_path, "w", encoding="utf-8") as f:
+        f.write(content)
+
+
+inject_html_tags()
 
 
 @app.route("/", defaults={"path": ""})
@@ -38,11 +68,10 @@ def serve(path):
     if path != "" and os.path.exists(app.static_folder + "/" + path):
         return send_from_directory(app.static_folder, path)
     else:
-        return send_from_directory(app.static_folder, "index.html")
+        return send_from_directory(app.static_folder, "_index.html")
 
 
 @app.route("/completion", methods=["POST"])
-@limiter.limit(config.request_limit)
 @trace
 def completion():
     """Handle a completion request from the prompt playground."""
@@ -125,6 +154,9 @@ def connect():
             access_token=access_token,
             url=config.chainlit_server,
         )
+        is_project_member = client.is_project_member()
+        if not is_project_member:
+            raise ConnectionRefusedError("You are not a member of this project")
 
     # Function to send a message to this particular session
     def _emit(event, data):
@@ -210,9 +242,7 @@ def stop():
         if config.on_stop:
             config.on_stop()
 
-        __chainlit_sdk__.send_message(
-            author="System", content="Conversation stopped by the user."
-        )
+        Message(author="System", content="Conversation stopped by the user.").send()
 
 
 def need_session(id: str):
@@ -263,30 +293,27 @@ def process_message(session: Session, author: str, input_str: str):
                     # Otherwise, use the raw response
                     res = raw_res
             # Finally, send the response to the user
-            __chainlit_sdk__.send_message(author=config.chatbot_name, content=res)
+            Message(author=config.chatbot_name, content=res).send()
 
         elif config.on_message:
             # If no langchain agent is available, call the on_message function provided by the developer
             config.on_message(input_str)
     except Exception as e:
         logger.exception(e)
-        __chainlit_sdk__.send_message(author="Error", is_error=True, content=str(e))
+        ErrorMessage(author="Error", content=str(e)).send()
     finally:
         __chainlit_sdk__.task_end()
 
 
-@app.route("/message", methods=["POST"])
-@limiter.limit(config.request_limit)
-@trace
-def message():
+@socketio.on("message")
+def on_message(body):
     """Handle a message from the UI."""
 
-    body = request.json
-    session_id = body["sessionId"]
+    session_id = request.sid
+    session = need_session(session_id)
+
     input_str = body["content"].strip()
     author = body["author"]
-
-    session = need_session(session_id)
 
     task = socketio.start_background_task(process_message, session, author, input_str)
     session["task"] = task
@@ -305,21 +332,15 @@ def process_action(session: Session, action: Action):
         logger.warning("No callback found for action %s", action.name)
 
 
-@app.route("/action", methods=["POST"])
-@limiter.limit(config.request_limit)
-@trace
-def on_action():
+@socketio.on("call_action")
+def call_action(action):
     """Handle an action call from the UI."""
-
-    body = request.json
-    session_id = body["sessionId"]
-    action = Action(**body["action"])
-
+    session_id = request.sid
     session = need_session(session_id)
+
+    action = Action(**action)
 
     task = socketio.start_background_task(process_action, session, action)
     session["task"] = task
     task.join()
     session["task"] = None
-
-    return {"success": True}

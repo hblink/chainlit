@@ -5,6 +5,7 @@ import uuid
 import requests
 from chainlit.types import ElementType, ElementSize
 from chainlit.logger import logger
+from chainlit.config import config
 
 
 class BaseClient(ABC):
@@ -12,11 +13,23 @@ class BaseClient(ABC):
     session_id: str
 
     @abstractmethod
+    def is_project_member(self, access_token: str) -> bool:
+        pass
+
+    @abstractmethod
     def create_conversation(self, session_id: str) -> int:
         pass
 
     @abstractmethod
     def create_message(self, variables: Dict[str, Any]) -> int:
+        pass
+
+    @abstractmethod
+    def update_message(self, message_id: int, variables: Dict[str, Any]) -> bool:
+        pass
+
+    @abstractmethod
+    def delete_message(self, message_id: int) -> bool:
         pass
 
     @abstractmethod
@@ -74,6 +87,23 @@ class CloudClient(BaseClient):
         """
         return self.client.execute(query=mutation, variables=variables)
 
+    def is_project_member(self) -> bool:
+        try:
+            headers = {
+                "content-type": "application/json",
+                "Authorization": self.headers["Authorization"],
+            }
+            data = {"projectId": self.project_id}
+            response = requests.post(
+                f"{config.chainlit_server}/api/role", headers=headers, json=data
+            )
+
+            role = response.json().get("role", "ANONYMOUS")
+            return role != "ANONYMOUS"
+        except Exception as e:
+            logger.exception(e)
+            return False
+
     def create_conversation(self, session_id: str) -> int:
         mutation = """
         mutation ($projectId: String!, $sessionId: String!) {
@@ -116,10 +146,43 @@ class CloudClient(BaseClient):
         res = self.mutation(mutation, variables)
 
         if self.check_for_errors(res):
-            logger.warning("Could not persist message.")
+            logger.warning("Could not create message.")
             return None
 
         return int(res["data"]["createMessage"]["id"])
+
+    def update_message(self, message_id: int, variables: Dict[str, Any]) -> bool:
+        mutation = """
+        mutation ($messageId: ID!, $author: String!, $content: String!, $language: String, $prompt: String, $llmSettings: Json) {
+            updateMessage(messageId: $messageId, author: $author, content: $content, language: $language, prompt: $prompt, llmSettings: $llmSettings) {
+                id
+            }
+        }
+        """
+        variables["messageId"] = message_id
+        res = self.mutation(mutation, variables)
+
+        if self.check_for_errors(res):
+            logger.warning("Could not update message.")
+            return False
+
+        return True
+
+    def delete_message(self, message_id: int) -> bool:
+        mutation = """
+        mutation ($messageId: ID!) {
+            deleteMessage(messageId: $messageId) {
+                id
+            }
+        }
+        """
+        res = self.mutation(mutation, {"messageId": message_id})
+
+        if self.check_for_errors(res):
+            logger.warning("Could not delete message.")
+            return False
+
+        return True
 
     def create_element(
         self,

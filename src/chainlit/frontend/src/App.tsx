@@ -52,7 +52,7 @@ const router = createBrowserRouter([
     element: <Dataset />
   },
   {
-    path: '/element/:name',
+    path: '/element/:id',
     element: <Element />
   },
   {
@@ -84,7 +84,6 @@ function App() {
   useEffect(() => {
     if (pSettings === undefined) {
       getProjectSettings().then((res) => {
-        document.title = res.appTitle;
         setPSettings(res);
       });
     }
