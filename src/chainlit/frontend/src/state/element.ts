@@ -1,38 +1,77 @@
 import { atom } from 'recoil';
 
-export enum ElementType {
-  img = 'image',
-  txt = 'text'
-}
+export type ElementType =
+  | 'image'
+  | 'text'
+  | 'pdf'
+  | 'avatar'
+  | 'tasklist'
+  | 'audio'
+  | 'video'
+  | 'file';
 
-type ElementContentType = {
-  [ElementType.img]: ArrayBuffer;
-  [ElementType.txt]: string;
-};
+export type AllElements =
+  | IImageElement
+  | ITextElement
+  | IPdfElement
+  | IAvatarElement
+  | ITasklistElement
+  | IAudioElement
+  | IVideoElement
+  | IFileElement;
 
-type ValueOf<T> = T[keyof T];
+export type IElementSize = 'small' | 'medium' | 'large';
 
 export interface IElement {
-  id?: number;
-  tempId?: string;
+  id: string;
+  conversationId?: string;
   url?: string;
-  content?: ValueOf<ElementContentType>;
   type: ElementType;
   name: string;
   display: 'inline' | 'side' | 'page';
-  forId?: string;
+  forIds?: string[];
 }
 
 export interface IImageElement extends IElement {
-  type: ElementType.img;
-  content?: ElementContentType[ElementType.img];
-  size?: 'small' | 'medium' | 'large';
+  type: 'image';
+  content?: ArrayBuffer;
+  size?: IElementSize;
+}
+
+export interface IAvatarElement extends IElement {
+  type: 'avatar';
+  content?: ArrayBuffer;
 }
 
 export interface ITextElement extends IElement {
-  type: ElementType.txt;
-  content?: ElementContentType[ElementType.txt];
+  type: 'text';
+  content?: string;
   language?: string;
+}
+export interface IPdfElement extends IElement {
+  type: 'pdf';
+  content?: string;
+}
+
+export interface IAudioElement extends IElement {
+  type: 'audio';
+  content?: ArrayBuffer;
+}
+
+export interface IVideoElement extends IElement {
+  type: 'video';
+  content?: ArrayBuffer;
+  size?: IElementSize;
+}
+
+export interface IFileElement extends IElement {
+  type: 'file';
+  content?: ArrayBuffer;
+}
+
+export interface ITasklistElement extends IElement {
+  type: 'tasklist';
+  content?: string;
 }
 
 export type IElements = IElement[];

@@ -8,6 +8,8 @@ Chainlit lets you create ChatGPT-like UIs on top of any Python code in minutes! 
 [![Twitter](https://img.shields.io/twitter/url/https/twitter.com/chainlit_io.svg?style=social&label=Follow%20%40chainlit_io)](https://twitter.com/chainlit_io)
 [![CI](https://github.com/Chainlit/chainlit/actions/workflows/ci.yaml/badge.svg)](https://github.com/Chainlit/chainlit/actions/workflows/ci.yaml)
 
+https://github.com/Chainlit/chainlit/assets/13104895/e347e52c-35b2-4c35-8a88-f8ac02dd198e
+
 ## Installation
 
 Open a terminal and run:
@@ -37,12 +39,12 @@ import chainlit as cl
 
 
 @cl.on_message  # this function will be called every time a user inputs a message in the UI
-def main(message: str):
+async def main(message: str):
     # this is an intermediate step
-    cl.Message(author="Tool 1", content=f"Response from tool1", indent=1).send()
+    await cl.Message(author="Tool 1", content=f"Response from tool1", indent=1).send()
 
     # send back the final answer
-    cl.Message(content=f"This is the final answer").send()
+    await cl.Message(content=f"This is the final answer").send()
 ```
 
 Now run it!
@@ -54,7 +56,10 @@ $ chainlit run demo.py -w
 
 ### 🔗 With LangChain
 
-Checkout our plug and play [integration](https://docs.chainlit.io/langchain) with LangChain!
+Check out our plug-and-play [integration](https://docs.chainlit.io/langchain) with LangChain!
+
+### 📚 More Examples - Cookbook
+You can find various examples of Chainlit apps [here](https://github.com/Chainlit/cookbook) that leverage tools and services such as OpenAI, Anthropiс, LangChain, LlamaIndex, ChromaDB, Pinecone and more.
 
 ## 🛣 Roadmap
 - [ ] New UI elements (spreadsheet, video, carousel...)

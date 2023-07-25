@@ -1,6 +1,9 @@
-from pydantic.dataclasses import dataclass
+from typing import Optional
+
 from dataclasses_json import dataclass_json
-from chainlit.sdk import get_emit
+from pydantic.dataclasses import dataclass
+
+from chainlit.context import get_emitter
 from chainlit.telemetry import trace_event
 
 
@@ -16,20 +19,17 @@ class Action:
     # The description of the action. This is what the user will see when they hover the action.
     description: str = ""
     # This should not be set manually, only used internally.
-    forId: str = None
+    forId: Optional[str] = None
 
     def __post_init__(self) -> None:
         trace_event(f"init {self.__class__.__name__}")
+        self.emit = get_emitter().emit
 
-    def send(self, for_id: str):
-        emit = get_emit()
-        if emit:
-            trace_event(f"send {self.__class__.__name__}")
-            self.forId = for_id
-            emit("action", self.to_dict())
+    async def send(self, for_id: str):
+        trace_event(f"send {self.__class__.__name__}")
+        self.forId = for_id
+        await self.emit("action", self.to_dict())
 
-    def remove(self):
-        emit = get_emit()
-        if emit:
-            trace_event(f"remove {self.__class__.__name__}")
-            emit("remove_action", self.to_dict())
+    async def remove(self):
+        trace_event(f"remove {self.__class__.__name__}")
+        await self.emit("remove_action", self.to_dict())

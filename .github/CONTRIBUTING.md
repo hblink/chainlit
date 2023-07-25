@@ -1,95 +1,128 @@
 # Contribute to Chainlit
+
 To contribute to Chainlit, you first need to setup the project on your local machine.
+
+## Table of Contents
+
+<!--
+Generated using https://ecotrust-canada.github.io/markdown-toc/.
+I've copy/pasted the whole document there, without the previous two headings.
+-->
+
+- [Local setup](#local-setup)
+  - [Requirements](#requirements)
+  - [Setup the repo](#setup-the-repo)
+  - [Install JS dependencies](#install-js-dependencies)
+  - [Install python dependencies](#install-python-dependencies)
+- [Start the Chainlit server from source](#start-the-chainlit-server-from-source)
+- [Start the UI from source](#start-the-ui-from-source)
+- [Run the tests](#run-the-tests)
+  - [Run one test](#run-one-test)
+
 
 ## Local setup
 
 ### Requirements
 
-1. Python >= `3.8` 
+1. Python >= `3.8`
 2. Poetry ([See how to install](https://python-poetry.org/docs/#installation))
 3. NodeJS >= `16` ([See how to install](https://nodejs.org/en/download))
+4. Pnpm ([See how to install](https://pnpm.io/installation))
 
+> **Note**
+> If you are on windows, some pnpm commands like `pnpm run formatPython` won't work. You can fix this by changing the pnpm script-shell to bash: `pnpm config set script-shell "C:\\Program Files\\git\\bin\\bash.exe"` (default x64 install location, [Info](https://pnpm.io/cli/run#script-shell))
 
-### Clone the repo
+### Setup the repo
+
+With this setup you can easily code in your fork and fetch updates from the main repository.
+
+1. Go to https://github.com/Chainlit/chainlit/fork to fork the chainlit code into your own repository.
+2. Clone your fork locally
 
 ```sh
-git clone https://github.com/Chainlit/chainlit.git
-cd chainlit
+$ git clone https://github.com/YOUR_USERNAME/YOUR_FORK.git
+```
+
+3. Go into your fork and list the current configured remote repository.
+
+```sh
+$ git remote -v
+> origin  https://github.com/YOUR_USERNAME/YOUR_FORK.git (fetch)
+> origin  https://github.com/YOUR_USERNAME/YOUR_FORK.git (push)
+```
+
+4. Specify the new remote upstream repository that will be synced with the fork.
+
+```sh
+$ git remote add upstream https://github.com/Chainlit/chainlit.git
+```
+
+5. Verify the new upstream repository you've specified for your fork.
+
+```sh
+$ git remote -v
+> origin    https://github.com/YOUR_USERNAME/YOUR_FORK.git (fetch)
+> origin    https://github.com/YOUR_USERNAME/YOUR_FORK.git (push)
+> upstream  https://github.com/Chainlit/chainlit.git (fetch)
+> upstream  https://github.com/Chainlit/chainlit.git (push)
 ```
 
 ### Install JS dependencies
 
 ```sh
-npm install
-npm run installUiDeps
+pnpm install
 ```
 
-### Install python env
+### Install python dependencies
 
 ```sh
 cd src
 poetry install
 ```
 
-## Contribute to the UI
+Make sure you have the Python code formatters `black` and `isort` installed as they are used in a pre-commit hook. Run `pip install black isort` if needed.
 
-The source code of the UI is in [src/chainlit/frontend](/src/chainlit/frontend).
+## Start the Chainlit server from source
 
-Before anything, go to [src/chainlit/frontend/api/index.ts](/src/chainlit/frontend/src/api/index.ts). Find the definition of `const server` and inverse the comment:
+You need to build the UI once before starting the server.
 
-```ts
-export const server = 'http://127.0.0.1:8000';
-// export const server = '';
+```sh
+pnpm run buildUi
 ```
 
-Don't forget to revert that change before pushing.
+Start by running `src/chainlit/hello.py` as an example.
 
-### Start the UI
+```sh
+cd src
+poetry run chainlit run chainlit/hello.py
+```
+
+You should now be able to access the Chainlit app you just launched on `http://127.0.0.1:8000`.
+
+If you've made it this far, you can now replace `chainlit/hello.py` by your own target. 😎
+
+## Start the UI from source
+
+First, you will have to start the server either [from source](#start-the-chainlit-server-from-source) or with `chainlit run... `. Since we are starting the UI from source, you can start the server with the `-h` (headless) option.
+
+Then, start the UI.
 
 ```sh
 cd src/chainlit/frontend
-npm run dev -- --port 5174
+pnpm run dev --port 5174
 ```
 
-If you visit `http://127.0.0.1:5174/`, it should say that it can't connect to the server.
-
-### Start the server
-- If you only wish to contribute to the UI, you can use any Chainlit installation
-- If your contribution impacts both the UI and the Python package, you need to start the server from your [local installation](#contribute-to-the-python-package)
-
-Starting the chainlit server in headless mode (since we manually started the UI)
-```sh
-chainlit run target.py -h
-```
-
-## Contribute to the Python package
-
-- If you only wish to contribute to the Python package, run:
-```sh
-npm run buildUi
-```
-
-- If your contribution impacts both the Python package and the UI, check the section above
-
-### Install from local sources
-
-```sh
-pip install PATH_TO_CHAINLIT_REPO/src
-```
-
-You need to repeat that step everytime you make a change in the Python codebase
-
-### Start the server
-
-```sh
-chainlit run target.py [-h]
-```
-
-The `-h` parameter (headless) means the UI will not automatically open. Only use this if you are already running the UI yourself.
+If you visit `http://127.0.0.1:5174/`, it should connect to your local server. If the local server is not running, it should say that it can't connect to the server.
 
 ## Run the tests
 
-1. Create an `.env` file at the root of the repo following the model of `.env.example`
-2. Run `npm test`
+Run `pnpm test`
 
 Once you create a pull request, the tests will automatically run. It is a good practice to run the tests locally before pushing.
+
+### Run one test
+
+1. Find the folder containing the e2e test that you're looking for in `cypress/e2e`.
+2. Run `SINGLE_TEST=FOLDER pnpm test` and change FOLDER with the folder from the previous step (example: `SINGLE_TEST=scoped_elements run test`).
+
+You can optionally skip the build phase when running a test by adding `SKIP_BUILD=true`.

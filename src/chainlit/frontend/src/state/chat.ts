@@ -1,6 +1,9 @@
 import { atom } from 'recoil';
 import { Socket } from 'socket.io-client';
 
+import { IElement } from './element';
+import { IMember } from './user';
+
 export interface ILLMSettings {
   model_name: string;
   stop: string[] | string;
@@ -12,26 +15,37 @@ export interface ILLMSettings {
 }
 
 export interface IChat {
-  createdAt: number;
-  messages: {
-    content: string;
-  }[];
+  id: number;
+  createdAt: number | string;
+  author?: IMember;
+  messages: IMessage[];
+  elements: IElement[];
 }
 
 export interface IMessage {
-  id?: number;
-  tempId?: string;
+  id: string;
   author: string;
   authorIsUser?: boolean;
   waitForAnswer?: boolean;
   content?: string;
-  createdAt: number;
+  createdAt: number | string;
   humanFeedback?: number;
   language?: string;
   indent?: number;
+  parentId?: string;
   isError?: boolean;
   prompt?: string;
   llmSettings?: ILLMSettings;
+}
+
+export interface IMessageUpdate extends IMessage {
+  newId?: string;
+}
+
+export interface IToken {
+  id: number | string;
+  token: string;
+  isSequence: boolean;
 }
 
 export interface INestedMessage extends IMessage {
@@ -52,12 +66,13 @@ export interface IAskFileResponse {
 }
 
 export interface IAsk {
-  callback: (payload: IAskResponse | IAskFileResponse) => void;
+  callback: (payload: IAskResponse | IAskFileResponse[]) => void;
   spec: {
     type: 'text' | 'file';
     timeout: number;
     accept?: string[] | Record<string, string[]>;
     max_size_mb?: number;
+    max_files?: number;
   };
 }
 
@@ -96,4 +111,9 @@ export const historyOpenedState = atom<boolean>({
 export const askUserState = atom<IAsk | undefined>({
   key: 'AskUser',
   default: undefined
+});
+
+export const highlightMessage = atom<IMessage['id'] | null>({
+  key: 'HighlightMessage',
+  default: null
 });

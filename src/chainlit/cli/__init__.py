@@ -1,15 +1,30 @@
-import click
+import asyncio
 import os
 import sys
-import webbrowser
-from chainlit.config import config, init_config, load_module
-from chainlit.watch import watch_directory
-from chainlit.markdown import init_markdown
+
+import click
+import nest_asyncio
+import uvicorn
+
+nest_asyncio.apply()
+
+from chainlit.cache import init_lc_cache
 from chainlit.cli.auth import login, logout
 from chainlit.cli.deploy import deploy
 from chainlit.cli.utils import check_file
-from chainlit.telemetry import trace_event
+from chainlit.config import (
+    DEFAULT_HOST,
+    DEFAULT_PORT,
+    PACKAGE_ROOT,
+    config,
+    init_config,
+    load_module,
+)
+from chainlit.db import init_local_db, migrate_local_db
 from chainlit.logger import logger
+from chainlit.markdown import init_markdown
+from chainlit.server import app, max_message_size, register_wildcard_route_handler
+from chainlit.telemetry import trace_event
 
 
 # Create the main command group for Chainlit CLI
@@ -20,65 +35,123 @@ def cli():
 
 
 # Define the function to run Chainlit with provided options
-def run_chainlit(target: str, watch=False, headless=False, debug=False):
-    DEFAULT_HOST = "0.0.0.0"
-    DEFAULT_PORT = 8000
+def run_chainlit(target: str):
     host = os.environ.get("CHAINLIT_HOST", DEFAULT_HOST)
     port = int(os.environ.get("CHAINLIT_PORT", DEFAULT_PORT))
+    config.run.host = host
+    config.run.port = port
 
     check_file(target)
     # Load the module provided by the user
-    config.module_name = target
-    load_module(config.module_name)
+    config.run.module_name = target
+    load_module(config.run.module_name)
+
+    register_wildcard_route_handler()
 
     # Create the chainlit.md file if it doesn't exist
     init_markdown(config.root)
 
-    # Enable file watching if the user specified it
-    if watch:
-        watch_directory()
+    # Initialize the LangChain cache if installed and enabled
+    init_lc_cache()
 
-    from chainlit.server import socketio, app
+    # Initialize the local database if configured to use it
+    init_local_db()
 
-    # Open the browser if in development mode
-    def open_browser(headless: bool):
-        if not headless:
-            if host == DEFAULT_HOST:
-                url = f"http://localhost:{port}"
-            else:
-                url = f"http://{host}:{port}"
-            # Wait two seconds to allow the server to start
-            socketio.sleep(2)
+    log_level = "debug" if config.run.debug else "error"
 
-            logger.info(f"Your app is available at {url}")
-            webbrowser.open(url)
-
-    socketio.start_background_task(open_browser, headless)
     # Start the server
-    socketio.run(app, host=host, port=port, debug=debug, use_reloader=False)
+    async def start():
+        config = uvicorn.Config(
+            app,
+            host=host,
+            port=port,
+            log_level=log_level,
+            ws_max_size=max_message_size,
+        )
+        server = uvicorn.Server(config)
+        await server.serve()
+
+    # Run the asyncio event loop instead of uvloop to enable re entrance
+    asyncio.run(start())
+    # uvicorn.run(app, host=host, port=port, log_level=log_level)
 
 
 # Define the "run" command for Chainlit CLI
 @cli.command("run")
 @click.argument("target", required=True, envvar="RUN_TARGET")
-@click.option("-w", "--watch", default=False, is_flag=True, envvar="WATCH")
-@click.option("-h", "--headless", default=False, is_flag=True, envvar="HEADLESS")
-@click.option("-d", "--debug", default=False, is_flag=True, envvar="DEBUG")
-@click.option("-c", "--ci", default=False, is_flag=True, envvar="CI")
-@click.option("--host")
-@click.option("--port")
-def chainlit_run(target, watch, headless, debug, ci, host, port):
+@click.option(
+    "-w",
+    "--watch",
+    default=False,
+    is_flag=True,
+    envvar="WATCH",
+    help="Reload the app when the module changes",
+)
+@click.option(
+    "-h",
+    "--headless",
+    default=False,
+    is_flag=True,
+    envvar="HEADLESS",
+    help="Will prevent to auto open the app in the browser",
+)
+@click.option(
+    "-d",
+    "--debug",
+    default=False,
+    is_flag=True,
+    envvar="DEBUG",
+    help="Set the log level to debug",
+)
+@click.option(
+    "-c",
+    "--ci",
+    default=False,
+    is_flag=True,
+    envvar="CI",
+    help="Flag to run in CI mode",
+)
+@click.option(
+    "--no-cache",
+    default=False,
+    is_flag=True,
+    envvar="NO_CACHE",
+    help="Useful to disable third parties cache, such as langchain.",
+)
+@click.option(
+    "--db",
+    type=click.Choice(["cloud", "local"]),
+    help="Useful to control database mode when running CI.",
+)
+@click.option("--host", help="Specify a different host to run the server on")
+@click.option("--port", help="Specify a different port to run the server on")
+def chainlit_run(target, watch, headless, debug, ci, no_cache, db, host, port):
     if host:
         os.environ["CHAINLIT_HOST"] = host
     if port:
         os.environ["CHAINLIT_PORT"] = port
     if ci:
         logger.info("Running in CI mode")
-        config.enable_telemetry = False
+
+        if db:
+            config.project.database = db
+
+        config.project.enable_telemetry = False
+        no_cache = True
+        from chainlit.cli.mock import mock_openai
+
+        mock_openai()
+
     else:
         trace_event("chainlit run")
 
-    run_chainlit(target, watch, headless, debug)
+    config.run.headless = headless
+    config.run.debug = debug
+    config.run.no_cache = no_cache
+    config.run.ci = ci
+    config.run.watch = watch
+
+    run_chainlit(target)
 
 
 @cli.command("deploy")
@@ -94,8 +167,7 @@ def chainlit_deploy(target, args=None, **kwargs):
 @click.argument("args", nargs=-1)
 def chainlit_hello(args=None, **kwargs):
     trace_event("chainlit hello")
-    dir_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-    hello_path = os.path.join(dir_path, "hello.py")
+    hello_path = os.path.join(PACKAGE_ROOT, "hello.py")
     run_chainlit(hello_path)
 
 
@@ -112,6 +184,14 @@ def chainlit_login(args=None, **kwargs):
 def chainlit_logout(args=None, **kwargs):
     trace_event("chainlit logout")
     logout()
+    sys.exit(0)
+
+
+@cli.command("migrate")
+@click.argument("args", nargs=-1)
+def chainlit_migrate(args=None, **kwargs):
+    trace_event("chainlit migrate")
+    migrate_local_db()
     sys.exit(0)
 
 

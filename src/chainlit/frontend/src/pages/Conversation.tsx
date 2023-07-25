@@ -1,85 +1,57 @@
-import { Box } from '@mui/material';
-import MessageContainer from 'components/chat/message/container';
-import Page from 'pages/Page';
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { gql, useQuery } from '@apollo/client';
-import { IElements } from 'state/element';
-import SideView from 'components/element/sideView';
-import Playground from 'components/playground';
-import { IAction } from 'state/action';
+import { useRecoilValue } from 'recoil';
 
-const ConversationQuery = gql`
-  query ($id: ID!) {
-    conversation(id: $id) {
-      id
-      createdAt
-      messages {
-        id
-        isError
-        indent
-        author
-        content
-        waitForAnswer
-        humanFeedback
-        language
-        prompt
-        llmSettings
-        authorIsUser
-        createdAt
-      }
-      elements {
-        id
-        type
-        name
-        url
-        display
-        language
-        size
-        forId
-      }
-    }
-  }
-`;
+import { Box } from '@mui/material';
+
+import SideView from 'components/atoms/element/sideView';
+import MessageContainer from 'components/organisms/chat/message/container';
+import Playground from 'components/organisms/playground';
+
+import { IAction } from 'state/action';
+import { IChat } from 'state/chat';
+import { clientState } from 'state/client';
 
 export default function Conversation() {
   const { id } = useParams();
-  const { data, error } = useQuery(ConversationQuery, {
-    variables: {
-      id: id
-    }
-  });
+  const client = useRecoilValue(clientState);
+  const [error, setError] = useState<string | undefined>();
+  const [conversation, setConversation] = useState<IChat | undefined>();
 
-  if (!data || error) {
+  useEffect(() => {
+    if (!id) {
+      return;
+    }
+
+    setError(undefined);
+
+    client
+      .getConversation(id)
+      .then((conversation) => setConversation(conversation))
+      .catch((err) => {
+        setError(err.message);
+      });
+  }, [client, id]);
+
+  if (!conversation || error) {
     return null;
   }
 
-  const elements: IElements = data.conversation.elements;
+  const elements = conversation.elements;
   const actions: IAction[] = [];
 
   return (
-    <Page>
-      <Box display="flex" flexGrow={1} width="100%" overflow="scroll">
-        <Playground />
-        <Box
-          flexGrow={1}
-          display="flex"
-          flexDirection="column"
-          overflow="auto"
-          boxSizing="border-box"
-          px={{
-            xs: 2,
-            md: 0
-          }}
-        >
-          <Box my={1} />
-          <MessageContainer
-            actions={actions}
-            elements={elements}
-            messages={data.conversation.messages}
-          />
-        </Box>
-        <SideView />
-      </Box>
-    </Page>
+    <Box display="flex" flexGrow={1} width="100%" overflow="scroll">
+      <Playground />
+
+      <SideView>
+        <Box my={1} />
+        <MessageContainer
+          actions={actions}
+          elements={elements}
+          messages={conversation.messages}
+        />
+      </SideView>
+    </Box>
   );
 }

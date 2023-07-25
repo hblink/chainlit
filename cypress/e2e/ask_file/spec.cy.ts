@@ -1,5 +1,3 @@
-const path = require("path");
-
 describe("Upload file", () => {
   before(() => {
     cy.intercept("/project/settings").as("settings");
@@ -14,9 +12,9 @@ describe("Upload file", () => {
     cy.fixture("state_of_the_union.txt", "utf-8").as("txtFile");
     cy.get("input[type=file]").selectFile("@txtFile", { force: true });
 
-    cy.get("#upload-button-loading").should("exist");
-
-    cy.get("#upload-button-loading").should("not.exist");
+    // Sometimes the loading indicator is not shown because the file upload is too fast
+    // cy.get("#upload-button-loading").should("exist");
+    // cy.get("#upload-button-loading").should("not.exist");
 
     cy.get(".message")
       .eq(1)

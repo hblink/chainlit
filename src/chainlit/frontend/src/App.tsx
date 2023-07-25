@@ -1,30 +1,38 @@
-import { Box } from '@mui/material';
-import './App.css';
-import {
-  createBrowserRouter,
-  Navigate,
-  RouterProvider
-} from 'react-router-dom';
 import { useEffect } from 'react';
-import { useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil';
-import { accessTokenState, roleState } from 'state/user';
-import { getProjectSettings, getRole } from 'api';
-import makeTheme from 'theme';
-import { ThemeProvider } from '@mui/material';
-import { themeState } from 'state/theme';
-import Home from 'pages/Home';
-import Element from 'pages/Element';
-import Login from 'pages/Login';
-import AuthCallback from 'pages/AuthCallback';
-import Dataset from 'pages/Dataset';
-import Conversation from 'pages/Conversation';
-import CloudProvider from 'components/cloudProvider';
-import Env from 'pages/Env';
-import { useAuth } from 'hooks/auth';
-import { projectSettingsState } from 'state/project';
-import Socket from 'components/socket';
 import { Toaster } from 'react-hot-toast';
+import {
+  Navigate,
+  RouterProvider,
+  createBrowserRouter
+} from 'react-router-dom';
+import { useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil';
+import makeTheme from 'theme';
+
+import AuthCallback from 'pages/AuthCallback';
+import Conversation from 'pages/Conversation';
+import Dataset from 'pages/Dataset';
+import Design from 'pages/Design';
+import Element from 'pages/Element';
+import Env from 'pages/Env';
+import Home from 'pages/Home';
+import Login from 'pages/Login';
+import Page from 'pages/Page';
 import Readme from 'pages/Readme';
+
+import { Box } from '@mui/material';
+import { ThemeProvider } from '@mui/material';
+
+import Hotkeys from 'components/Hotkeys';
+import SettingsModal from 'components/molecules/settingsModal';
+import Socket from 'components/socket';
+
+import { useAuth } from 'hooks/auth';
+
+import { clientState } from 'state/client';
+import { settingsState } from 'state/settings';
+import { accessTokenState, roleState } from 'state/user';
+
+import './App.css';
 
 const router = createBrowserRouter([
   {
@@ -42,9 +50,9 @@ const router = createBrowserRouter([
   {
     path: '/conversations/:id',
     element: (
-      <CloudProvider>
+      <Page>
         <Conversation />
-      </CloudProvider>
+      </Page>
     )
   },
   {
@@ -60,6 +68,10 @@ const router = createBrowserRouter([
     element: <Login />
   },
   {
+    path: '/design',
+    element: <Design />
+  },
+  {
     path: '/api/auth/callback',
     element: <AuthCallback />
   },
@@ -70,8 +82,8 @@ const router = createBrowserRouter([
 ]);
 
 function App() {
-  const themeVariant = useRecoilValue(themeState);
-  const [pSettings, setPSettings] = useRecoilState(projectSettingsState);
+  const client = useRecoilValue(clientState);
+  const { theme: themeVariant } = useRecoilValue(settingsState);
   const [accessToken, setAccessToken] = useRecoilState(accessTokenState);
   const setRole = useSetRecoilState(roleState);
   const { isAuthenticated, getAccessTokenSilently, logout } = useAuth();
@@ -80,14 +92,6 @@ function App() {
   useEffect(() => {
     document.body.style.backgroundColor = theme.palette.background.default;
   }, [theme]);
-
-  useEffect(() => {
-    if (pSettings === undefined) {
-      getProjectSettings().then((res) => {
-        setPSettings(res);
-      });
-    }
-  }, []);
 
   useEffect(() => {
     if (isAuthenticated && accessToken === undefined) {
@@ -109,23 +113,26 @@ function App() {
   }, [isAuthenticated, getAccessTokenSilently, accessToken, setAccessToken]);
 
   useEffect(() => {
-    if (!accessToken || !pSettings?.projectId) {
+    if (!accessToken) {
       return;
     }
-    getRole(pSettings.chainlitServer, accessToken, pSettings.projectId)
-      .then(async ({ role }) => {
+    client.setAccessToken(accessToken);
+    client
+      .getRole()
+      .then(async (role) => {
         setRole(role);
       })
       .catch((err) => {
         console.log(err);
         setRole('ANONYMOUS');
       });
-  }, [accessToken, pSettings]);
+  }, [accessToken]);
 
   return (
     <ThemeProvider theme={theme}>
       <Toaster
         toastOptions={{
+          className: 'toast',
           style: {
             fontFamily: 'Inter',
             background: theme.palette.background.paper,
@@ -141,6 +148,8 @@ function App() {
       />
       <Box display="flex" height="100vh" width="100vw">
         <Socket />
+        <Hotkeys />
+        <SettingsModal />
         <RouterProvider router={router} />
       </Box>
     </ThemeProvider>

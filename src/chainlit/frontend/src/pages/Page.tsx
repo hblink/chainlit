@@ -1,10 +1,14 @@
-import { Alert, Box } from '@mui/material';
-import Header from 'components/header';
-import { useRecoilValue } from 'recoil';
-import { projectSettingsState } from 'state/project';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useRecoilValue } from 'recoil';
+
+import { Alert, Box } from '@mui/material';
+
+import Header from 'components/organisms/header';
+
 import { useAuth } from 'hooks/auth';
+
+import { projectSettingsState } from 'state/project';
 import { userEnvState } from 'state/user';
 
 type Props = {
@@ -12,29 +16,31 @@ type Props = {
 };
 
 const Page = ({ children }: Props) => {
-  const { isProjectMember, isAuthenticated, isLoading, role, accessToken } =
-    useAuth();
+  const {
+    isProjectMember,
+    authenticating,
+    isAuthenticated,
+    accessToken,
+    role
+  } = useAuth();
   const pSettings = useRecoilValue(projectSettingsState);
-  const navigate = useNavigate();
   const userEnv = useRecoilValue(userEnvState);
+  const navigate = useNavigate();
 
-  const isPrivate = pSettings && pSettings.public === false;
-
-  useEffect(() => {
-    if (isPrivate && !isAuthenticated && !isLoading) {
-      navigate('/login');
-    }
-  }, [pSettings, isAuthenticated, isLoading]);
+  const isPrivate = pSettings && !pSettings.project?.public;
 
   useEffect(() => {
-    if (pSettings?.userEnv) {
-      for (const key of pSettings.userEnv) {
+    if (pSettings?.project?.user_env) {
+      for (const key of pSettings.project?.user_env || []) {
         if (!userEnv[key]) navigate('/env');
       }
     }
-  }, [pSettings, userEnv]);
+    if (isPrivate && !isAuthenticated && !authenticating) {
+      navigate('/login');
+    }
+  }, [pSettings, isAuthenticated, authenticating, userEnv]);
 
-  if (isPrivate && !accessToken) {
+  if (!pSettings || (isPrivate && (!accessToken || !role))) {
     return null;
   }
 

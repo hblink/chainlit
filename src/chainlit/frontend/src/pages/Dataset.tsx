@@ -1,13 +1,11 @@
-import CloudProvider from 'components/cloudProvider';
-import Conversation from 'components/dataset';
 import Page from 'pages/Page';
+
+import Conversation from 'components/organisms/dataset';
 
 export default function Dataset() {
   return (
     <Page>
-      <CloudProvider>
-        <Conversation />
-      </CloudProvider>
+      <Conversation />
     </Page>
   );
 }
