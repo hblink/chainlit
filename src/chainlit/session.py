@@ -35,17 +35,20 @@ class Session:
         db_client: Optional[BaseDBClient],
         # User specific environment variables. Empty if no user environment variables are required.
         user_env: Dict[str, str],
+        # Headers received during the websocket connection handshake
+        initial_headers: Dict[str, str],
         # Optional langchain agent
-        agent: Any = None,
+        agent: Optional[Any] = None,
         # Optional llama instance
-        llama_instance: Any = None,
+        llama_instance: Optional[Any] = None,
         # Last message at the root of the chat
-        root_message: "Message" = None,
+        root_message: Optional["Message"] = None,
     ):
         self.socket_id = socket_id
         self.ask_user = ask_user
         self.emit = emit
         self.user_env = user_env
+        self.initial_headers = initial_headers
         self.agent = agent
         self.llama_instance = llama_instance
         self.auth_client = auth_client
@@ -54,6 +57,7 @@ class Session:
         self.should_stop = False
         self.restored = False
         self.id = id
+        self.chat_settings: Dict[str, Any] = {}
 
         sessions_id[self.id] = self
         sessions_sid[socket_id] = self

@@ -6,7 +6,6 @@ mimetypes.add_type("text/css", ".css")
 
 import asyncio
 import os
-import uuid
 import webbrowser
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -57,7 +56,7 @@ async def lifespan(app: FastAPI):
         webbrowser.open(url)
 
     if config.project.database == "local":
-        from prisma import Client, register
+        from prisma import Client, register  # type: ignore[attr-defined]
 
         client = Client()
         register(client)
@@ -250,8 +249,8 @@ async def update_feedback(request: Request, update: UpdateFeedbackRequest):
 async def get_project_members(request: Request):
     """Get all the members of a project."""
 
-    get_db_client = await get_db_client_from_request(request)
-    res = await get_db_client.get_project_members()
+    db_client = await get_db_client_from_request(request)
+    res = await db_client.get_project_members()
     return JSONResponse(content=res)
 
 
@@ -283,8 +282,10 @@ async def get_conversation(request: Request, conversation_id: str):
 
 
 @app.get("/project/conversation/{conversation_id}/element/{element_id}")
-async def get_conversation(request: Request, conversation_id: str, element_id: str):
-    """Get a specific conversation."""
+async def get_conversation_element(
+    request: Request, conversation_id: str, element_id: str
+):
+    """Get a specific conversation element."""
 
     db_client = await get_db_client_from_request(request)
     res = await db_client.get_element(conversation_id, element_id)
@@ -323,10 +324,17 @@ async def get_favicon():
 
 def register_wildcard_route_handler():
     @app.get("/{path:path}")
-    async def serve(path: str):
+    async def serve(request: Request, path: str):
         html_template = get_html_template()
         """Serve the UI files."""
         response = HTMLResponse(content=html_template, status_code=200)
+
+        response.set_cookie(
+            key="chainlit-initial-headers",
+            value=json.dumps(dict(request.headers)),
+            httponly=True,
+        )
+
         return response
 
 

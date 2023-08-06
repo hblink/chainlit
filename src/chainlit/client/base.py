@@ -11,8 +11,9 @@ from typing import (
     Union,
 )
 
-from dataclasses_json import dataclass_json
+from dataclasses_json import DataClassJsonMixin
 from pydantic.dataclasses import dataclass
+from starlette.datastructures import Headers
 
 from chainlit.types import (
     ConversationFilter,
@@ -32,6 +33,7 @@ class MessageDict(TypedDict):
     prompt: Optional[str]
     llmSettings: Dict
     language: Optional[str]
+    parentId: Optional[str]
     indent: Optional[int]
     authorIsUser: Optional[bool]
     waitForAnswer: Optional[bool]
@@ -40,22 +42,22 @@ class MessageDict(TypedDict):
 
 
 class UserDict(TypedDict):
-    id: Optional[int]
+    id: int
     name: Optional[str]
     email: Optional[str]
     role: str
 
 
 class ElementDict(TypedDict):
-    id: Optional[str]
+    id: str
     conversationId: Optional[str]
     type: ElementType
     url: str
     name: str
     display: ElementDisplay
-    size: ElementSize
-    language: str
-    forIds: Optional[List[Union[str, int]]]
+    size: Optional[ElementSize]
+    language: Optional[str]
+    forIds: Optional[List[str]]
 
 
 class ConversationDict(TypedDict):
@@ -77,16 +79,16 @@ class PageInfo:
 T = TypeVar("T")
 
 
-@dataclass_json
 @dataclass
-class PaginatedResponse(Generic[T]):
+class PaginatedResponse(DataClassJsonMixin, Generic[T]):
     pageInfo: PageInfo
     data: List[T]
 
 
 class BaseAuthClient(ABC):
     user_infos: Optional[UserDict] = None
-    access_token: Optional[str] = None
+    handshake_headers: Optional[Dict[str, str]] = None
+    request_headers: Optional[Headers] = None
 
     @abstractmethod
     async def is_project_member(self) -> bool:
@@ -109,7 +111,7 @@ class BaseDBClient(ABC):
         pass
 
     @abstractmethod
-    async def create_conversation(self) -> str:
+    async def create_conversation(self) -> Optional[str]:
         pass
 
     @abstractmethod
@@ -131,7 +133,7 @@ class BaseDBClient(ABC):
         pass
 
     @abstractmethod
-    async def create_message(self, variables: MessageDict) -> str:
+    async def create_message(self, variables: MessageDict) -> Optional[str]:
         pass
 
     @abstractmethod
@@ -160,6 +162,6 @@ class BaseDBClient(ABC):
 
     @abstractmethod
     async def set_human_feedback(
-        self, message_id: int, feedback: Literal[-1, 0, 1]
+        self, message_id: str, feedback: Literal[-1, 0, 1]
     ) -> bool:
         pass

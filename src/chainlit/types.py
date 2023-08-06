@@ -1,9 +1,10 @@
 from typing import Any, Dict, List, Literal, Optional, TypedDict, Union
 
-from dataclasses_json import dataclass_json
+from dataclasses_json import DataClassJsonMixin
 from pydantic import BaseModel
 from pydantic.dataclasses import dataclass
 
+InputWidgetType = Literal["switch", "slider", "select", "textinput", "tags"]
 ElementType = Literal[
     "image", "avatar", "text", "pdf", "tasklist", "audio", "video", "file"
 ]
@@ -11,18 +12,16 @@ ElementDisplay = Literal["inline", "side", "page"]
 ElementSize = Literal["small", "medium", "large"]
 
 
-@dataclass_json
 @dataclass
-class AskSpec:
+class AskSpec(DataClassJsonMixin):
     """Specification for asking the user."""
 
     timeout: int
     type: Literal["text", "file"]
 
 
-@dataclass_json
 @dataclass
-class AskFileSpec(AskSpec):
+class AskFileSpec(AskSpec, DataClassJsonMixin):
     """Specification for asking the user for a file."""
 
     accept: Union[List[str], Dict[str, List[str]]]
@@ -44,9 +43,8 @@ class AskFileResponse:
     content: bytes
 
 
-@dataclass_json
 @dataclass
-class LLMSettings:
+class LLMSettings(DataClassJsonMixin):
     model_name: str = "text-davinci-003"
     stop: Optional[List[str]] = None
     temperature: float = 0
@@ -73,7 +71,7 @@ class CompletionRequest(BaseModel):
 
 class UpdateFeedbackRequest(BaseModel):
     messageId: str
-    feedback: int
+    feedback: Literal[-1, 0, 1]
 
 
 class DeleteConversationRequest(BaseModel):

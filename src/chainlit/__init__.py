@@ -1,14 +1,17 @@
 import asyncio
 import os
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional
 
 from dotenv import load_dotenv
+from starlette.datastructures import Headers
 
 if TYPE_CHECKING:
-    from chainlit.client.base import BaseDBClient, UserDict
+    from chainlit.client.base import BaseDBClient, BaseAuthClient, UserDict
 
+import chainlit.input_widget as input_widget
 from chainlit.action import Action
 from chainlit.cache import cache
+from chainlit.chat_settings import ChatSettings
 from chainlit.config import config
 from chainlit.element import (
     Audio,
@@ -132,18 +135,55 @@ def action_callback(name: str) -> Callable:
     return decorator
 
 
+def on_settings_update(
+    func: Callable[[Dict[str, Any]], Any]
+) -> Callable[[Dict[str, Any]], Any]:
+    """
+    Hook to react to the user changing any settings.
+
+    Args:
+        func (Callable[], Any]): The hook to execute after settings were changed.
+
+    Returns:
+        Callable[], Any]: The decorated hook.
+    """
+
+    config.code.on_settings_update = wrap_user_function(func, with_task=True)
+    return func
+
+
 @trace
-def client_factory(
-    func: Callable[[Optional["UserDict"]], "BaseDBClient"]
-) -> Callable[[], "BaseDBClient"]:
+def auth_client_factory(
+    func: Callable[[Optional[Dict[str, str]], Optional[Headers]], "BaseAuthClient"]
+) -> Callable[[Optional[Dict[str, str]], Optional[Headers]], "BaseAuthClient"]:
     """
     Callback to call when to initialize the custom client.
 
     Args:
-        func (Callable[[Optional[UserDict]], BaseDBClient]): The action callback to execute. First parameter is the user infos if cloud auth is enabled.
+        func (Callable[[Optional[UserDict]], BaseDBClient]): The action callback to execute. First parameter is the headers, second is the user infos if cloud auth is enabled.
     """
 
-    config.code.client_factory = wrap_user_function(func, with_task=False)
+    config.code.auth_client_factory = wrap_user_function(func, with_task=False)
+    return func
+
+
+@trace
+def db_client_factory(
+    func: Callable[
+        [Optional[Dict[str, str]], Optional[Headers], Optional["UserDict"]],
+        "BaseDBClient",
+    ]
+) -> Callable[
+    [Optional[Dict[str, str]], Optional[Headers], Optional["UserDict"]], "BaseDBClient"
+]:
+    """
+    Callback to call when to initialize the custom client.
+
+    Args:
+        func (Callable[[Optional[UserDict]], BaseDBClient]): The action callback to execute. First parameter is the headers, second is the user infos if cloud auth is enabled.
+    """
+
+    config.code.db_client_factory = wrap_user_function(func, with_task=False)
     return func
 
 
@@ -171,6 +211,8 @@ __all__ = [
     "TaskList",
     "TaskStatus",
     "Video",
+    "ChatSettings",
+    "input_widget",
     "Message",
     "ErrorMessage",
     "AskUserMessage",
@@ -179,12 +221,14 @@ __all__ = [
     "on_stop",
     "action_callback",
     "author_rename",
+    "on_settings_update",
     "sleep",
     "LangchainCallbackHandler",
     "AsyncLangchainCallbackHandler",
     "LlamaIndexCallbackHandler",
+    "auth_client_factory",
+    "db_client_factory",
     "HaystackAgentCallbackHandler",
-    "client_factory",
     "run_sync",
     "make_async",
     "cache",
