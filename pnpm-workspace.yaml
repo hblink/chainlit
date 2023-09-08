@@ -1,2 +1,3 @@
 packages:
-  - "src/chainlit/frontend/"
+  - 'frontend/'
+  - 'libs/components/'

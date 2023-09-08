@@ -1,7 +1,4 @@
-from langchain import LLMMathChain, OpenAI
-
 import chainlit as cl
-from chainlit.langchain.callbacks import AsyncLangchainCallbackHandler
 
 
 @cl.author_rename
@@ -10,10 +7,7 @@ def rename(orig_author: str):
     return rename_dict.get(orig_author, orig_author)
 
 
-@cl.on_message
-async def main(message: str):
-    llm = OpenAI(temperature=0)
-    llm_math = LLMMathChain.from_llm(llm=llm)
-    res = await llm_math.acall(message, callbacks=[AsyncLangchainCallbackHandler()])
-
-    await cl.Message(content="Hello").send()
+@cl.on_chat_start
+async def main():
+    await cl.Message(author="LLMMathChain", content="2+2=4").send()
+    await cl.Message(content="The response is 4").send()

@@ -9,16 +9,17 @@ Generated using https://ecotrust-canada.github.io/markdown-toc/.
 I've copy/pasted the whole document there, without the previous two headings.
 -->
 
-- [Local setup](#local-setup)
-  - [Requirements](#requirements)
-  - [Setup the repo](#setup-the-repo)
-  - [Install JS dependencies](#install-js-dependencies)
-  - [Install python dependencies](#install-python-dependencies)
-- [Start the Chainlit server from source](#start-the-chainlit-server-from-source)
-- [Start the UI from source](#start-the-ui-from-source)
-- [Run the tests](#run-the-tests)
-  - [Run one test](#run-one-test)
-
+- [Contribute to Chainlit](#contribute-to-chainlit)
+  - [Table of Contents](#table-of-contents)
+  - [Local setup](#local-setup)
+    - [Requirements](#requirements)
+    - [Setup the repo](#setup-the-repo)
+    - [Install JS dependencies](#install-js-dependencies)
+    - [Install python dependencies](#install-python-dependencies)
+  - [Start the Chainlit server from source](#start-the-chainlit-server-from-source)
+  - [Start the UI from source](#start-the-ui-from-source)
+  - [Run the tests](#run-the-tests)
+    - [Run one test](#run-one-test)
 
 ## Local setup
 
@@ -76,7 +77,7 @@ pnpm install
 ### Install python dependencies
 
 ```sh
-cd src
+cd backend
 poetry install --with tests --with mypy
 ```
 
@@ -90,11 +91,12 @@ You need to build the UI once before starting the server.
 pnpm run buildUi
 ```
 
-Start by running `src/chainlit/hello.py` as an example.
+Start by running `backend/hello.py` as an example.
 
 ```sh
-cd src
-poetry run chainlit run chainlit/hello.py
+cd backend
+poetry shell
+chainlit run chainlit/hello.py
 ```
 
 You should now be able to access the Chainlit app you just launched on `http://127.0.0.1:8000`.
@@ -108,7 +110,7 @@ First, you will have to start the server either [from source](#start-the-chainli
 Then, start the UI.
 
 ```sh
-cd src/chainlit/frontend
+cd frontend
 pnpm run dev --port 5174
 ```
 
@@ -120,9 +122,13 @@ Run `pnpm test`
 
 Once you create a pull request, the tests will automatically run. It is a good practice to run the tests locally before pushing.
 
+You will need to rebuild the UI if you updated it between test runs.
+
+```sh
+pnpm run buildUi
+```
+
 ### Run one test
 
 1. Find the folder containing the e2e test that you're looking for in `cypress/e2e`.
-2. Run `SINGLE_TEST=FOLDER pnpm test` and change FOLDER with the folder from the previous step (example: `SINGLE_TEST=scoped_elements run test`).
-
-You can optionally skip the build phase when running a test by adding `SKIP_BUILD=true`.
+2. Run `SINGLE_TEST=FOLDER pnpm test` and change FOLDER with the folder from the previous step (example: `SINGLE_TEST=scoped_elements pnpm run test`).

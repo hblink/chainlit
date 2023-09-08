@@ -21,18 +21,30 @@ async def on_action(action: cl.Action):
 @cl.on_chat_start
 async def main():
     actions = [
-        cl.Action(name="test action", value="test"),
-        cl.Action(name="removable action", value="test"),
-        cl.Action(name="label action", value="test", label="Test Label"),
+        cl.Action(id="test-action", name="test action", value="test"),
+        cl.Action(id="removable-action", name="removable action", value="test"),
         cl.Action(
+            id="label-action", name="label action", value="test", label="Test Label"
+        ),
+        cl.Action(
+            id="multiple-action-one",
             name="multiple actions",
             value="multiple action one",
             label="multiple action one",
         ),
         cl.Action(
+            id="multiple-action-two",
             name="multiple actions",
             value="multiple action two",
             label="multiple action two",
         ),
+        cl.Action(id="all-actions-removed", name="all actions removed", value="test"),
     ]
-    await cl.Message("Hello, this is a test message!", actions=actions).send()
+    message = cl.Message("Hello, this is a test message!", actions=actions)
+
+    @cl.action_callback("all actions removed")
+    async def on_action(_: cl.Action):
+        await cl.Message(content=f"All actions have been removed!").send()
+        await message.remove_actions()
+
+    await message.send()
