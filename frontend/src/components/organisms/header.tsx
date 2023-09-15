@@ -15,10 +15,13 @@ import {
 } from '@mui/material';
 import useMediaQuery from '@mui/material/useMediaQuery';
 
-import RegularButton from 'components/atoms/buttons/button';
+import { RegularButton } from '@chainlit/components';
+
 import GithubButton from 'components/atoms/buttons/githubButton';
 import UserButton from 'components/atoms/buttons/userButton';
 import NewChatButton from 'components/molecules/newChatButton';
+
+import { useAuth } from 'hooks/auth';
 
 import { projectSettingsState } from 'state/project';
 
@@ -140,7 +143,10 @@ function Nav({ hasDb, hasReadme }: NavProps) {
 }
 
 export default function Header() {
+  const { user } = useAuth();
   const pSettings = useRecoilValue(projectSettingsState);
+
+  const hasHistory = !!(user && pSettings?.dataPersistence);
 
   return (
     <AppBar elevation={0} color="transparent" position="static">
@@ -154,10 +160,7 @@ export default function Header() {
         }}
       >
         <Stack alignItems="center" direction="row">
-          <Nav
-            hasDb={!!pSettings?.project?.database}
-            hasReadme={!!pSettings?.markdown}
-          />
+          <Nav hasDb={hasHistory} hasReadme={!!pSettings?.markdown} />
         </Stack>
         <Stack
           alignItems="center"
