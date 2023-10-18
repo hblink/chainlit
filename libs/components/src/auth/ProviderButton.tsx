@@ -1,7 +1,12 @@
 import { grey } from 'theme/palette';
 
-import { GitHub, Google, Microsoft } from '@mui/icons-material';
-import { Button } from '@mui/material';
+import GitHub from '@mui/icons-material/GitHub';
+import Google from '@mui/icons-material/Google';
+import Microsoft from '@mui/icons-material/Microsoft';
+import Button from '@mui/material/Button';
+
+import { Auth0 } from './Auth0';
+import { Okta } from './Okta';
 
 function capitalizeFirstLetter(string: string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
@@ -13,6 +18,8 @@ function getProviderName(provider: string) {
       return 'Microsoft';
     case 'github':
       return 'GitHub';
+    case 'okta':
+      return 'Okta';
     default:
       return capitalizeFirstLetter(provider);
   }
@@ -26,6 +33,10 @@ function renderProviderIcon(provider: string) {
       return <GitHub />;
     case 'azure-ad':
       return <Microsoft />;
+    case 'okta':
+      return <Okta />;
+    case 'auth0':
+      return <Auth0 />;
     default:
       return null;
   }

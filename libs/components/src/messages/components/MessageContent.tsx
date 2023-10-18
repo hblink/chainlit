@@ -7,39 +7,30 @@ import { InlinedElements } from 'src/elements/InlinedElements';
 import { exportToFile } from 'utils/exportToFile';
 import { prepareContent } from 'utils/message';
 
-import {
-  Link,
-  Paper,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Typography
-} from '@mui/material';
+import Box from '@mui/material/Box';
+import Link from '@mui/material/Link';
+import Paper from '@mui/material/Paper';
+import Stack from '@mui/material/Stack';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
+import Typography from '@mui/material/Typography';
 
 import { IMessageContent } from 'src/types/message';
 
 import { ElementRef } from './ElementRef';
+import { MessageButtons } from './MessageButtons';
 
 const COLLAPSE_MIN_LINES = 25; // Set this to the maximum number of lines you want to display before collapsing
 const COLLAPSE_MIN_LENGTH = 3000; // Set this to the maximum number of characters you want to display before collapsing
 
 const MessageContent = memo(
-  ({
-    id,
-    content,
-    elements,
-    language,
-    authorIsUser,
-    preserveSize
-  }: IMessageContent) => {
+  ({ message, elements, preserveSize }: IMessageContent) => {
     const { preparedContent, inlinedElements, refElements } = prepareContent({
-      id,
-      content,
-      language,
+      message,
       elements
     });
 
@@ -54,7 +45,7 @@ const MessageContent = memo(
             fontSize: '1rem',
             lineHeight: '1.5rem',
             fontFamily: 'Inter',
-            fontWeight: authorIsUser ? 500 : 300
+            fontWeight: message.authorIsUser ? 500 : 300
           }}
           component="div"
         >
@@ -131,18 +122,23 @@ const MessageContent = memo(
       preparedContent.length > COLLAPSE_MIN_LENGTH;
 
     return (
-      <Stack width="100%">
-        {collapse ? (
-          <Collapse
-            defaultExpandAll={preserveSize}
-            onDownload={() => exportToFile(preparedContent, `${id}.txt`)}
-          >
-            {renderContent()}
-          </Collapse>
-        ) : (
-          renderContent()
-        )}
-        <InlinedElements elements={inlinedElements} />
+      <Stack width="100%" direction="row">
+        <Box>
+          {collapse ? (
+            <Collapse
+              defaultExpandAll={preserveSize}
+              onDownload={() =>
+                exportToFile(preparedContent, `${message.id}.txt`)
+              }
+            >
+              {renderContent()}
+            </Collapse>
+          ) : (
+            renderContent()
+          )}
+          <InlinedElements elements={inlinedElements} />
+        </Box>
+        <MessageButtons message={message} />
       </Stack>
     );
   }

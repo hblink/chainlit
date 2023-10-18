@@ -71,7 +71,7 @@ export default function Login() {
     if (user) {
       navigate('/');
     }
-  }, [config, navigate, user]);
+  }, [config, user]);
 
   return (
     <AuthLogin
@@ -83,7 +83,7 @@ export default function Login() {
       onOAuthSignIn={async (provider: string) => {
         window.location.href = httpEndpoint + '/auth/oauth/' + provider;
       }}
-      renderLogo={<Logo style={{ maxWidth: '60%' }} />}
+      renderLogo={<Logo style={{ maxWidth: '60%', maxHeight: '90px' }} />}
     />
   );
 }

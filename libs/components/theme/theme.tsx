@@ -1,4 +1,4 @@
-import { createTheme } from '@mui/material';
+import createTheme from '@mui/material/styles/createTheme';
 
 import { green, grey, primary, white } from './palette';
 
@@ -33,8 +33,7 @@ const components = {
   MuiTooltip: {
     styleOverrides: {
       tooltip: {
-        backgroundColor: 'black',
-        color: 'white'
+        backgroundColor: 'black'
       }
     }
   }
@@ -126,8 +125,7 @@ const darkGreyButtonTheme = createTheme({
   shape,
   palette: {
     primary: {
-      main: grey[700],
-      contrastText: grey[100]
+      main: grey[900]
     }
   }
 });
@@ -138,8 +136,7 @@ const lightGreyButtonTheme = createTheme({
   shape,
   palette: {
     primary: {
-      main: grey[200],
-      contrastText: grey[700]
+      main: grey[200]
     }
   }
 });

@@ -6,47 +6,47 @@ import { useRecoilValue, useSetRecoilState } from 'recoil';
 import {
   MessageContainer as CMessageContainer,
   IAction,
+  IAsk,
+  IAvatarElement,
   IMessage,
   IMessageElement
 } from '@chainlit/components';
 
-import {
-  askUserState,
-  highlightMessage,
-  loadingState,
-  sessionState
-} from 'state/chat';
-import { avatarState, sideViewState } from 'state/element';
 import { playgroundState } from 'state/playground';
+import { highlightMessage, sideViewState } from 'state/project';
 import { projectSettingsState } from 'state/project';
 import { settingsState } from 'state/settings';
 import { accessTokenState } from 'state/user';
 
 interface Props {
+  loading: boolean;
   actions: IAction[];
   elements: IMessageElement[];
+  avatars: IAvatarElement[];
   messages: IMessage[];
+  askUser?: IAsk;
   autoScroll?: boolean;
+  callAction?: (action: IAction) => void;
   setAutoScroll?: (autoScroll: boolean) => void;
 }
 
 const MessageContainer = ({
+  askUser,
+  loading,
+  avatars,
   actions,
   autoScroll,
   elements,
   messages,
+  callAction,
   setAutoScroll
 }: Props) => {
   const accessToken = useRecoilValue(accessTokenState);
   const appSettings = useRecoilValue(settingsState);
-  const askUser = useRecoilValue(askUserState);
-  const avatars = useRecoilValue(avatarState);
-  const highlightedMessage = useRecoilValue(highlightMessage);
-  const loading = useRecoilValue(loadingState);
   const projectSettings = useRecoilValue(projectSettingsState);
-  const session = useRecoilValue(sessionState);
   const setPlayground = useSetRecoilState(playgroundState);
   const setSideView = useSetRecoilState(sideViewState);
+  const highlightedMessage = useRecoilValue(highlightMessage);
 
   const enableFeedback = !!projectSettings?.dataPersistence;
 
@@ -62,12 +62,18 @@ const MessageContainer = ({
 
   const onFeedbackUpdated = async (
     messageId: string,
-    value: number,
-    onSuccess: () => void
+    feedback: number,
+    onSuccess: () => void,
+    feedbackComment?: string
   ) => {
     try {
       await toast.promise(
-        ChainlitAPI.setHumanFeedback(messageId!, value, accessToken),
+        ChainlitAPI.setHumanFeedback(
+          messageId!,
+          feedback,
+          feedbackComment,
+          accessToken
+        ),
         {
           loading: 'Updating...',
           success: 'Feedback updated!',
@@ -79,7 +85,8 @@ const MessageContainer = ({
 
       const globalMessage = messages.find((m) => m.id === messageId);
       if (globalMessage) {
-        globalMessage.humanFeedback = value;
+        globalMessage.humanFeedback = feedback;
+        globalMessage.humanFeedbackComment = feedbackComment;
       }
       onSuccess();
     } catch (err) {
@@ -106,12 +113,7 @@ const MessageContainer = ({
     ...action,
     onClick: async () => {
       try {
-        const sessionId = session?.socket.id;
-
-        if (!sessionId) {
-          return;
-        }
-        session?.socket.emit('action_call', action);
+        callAction?.(action);
       } catch (err) {
         if (err instanceof Error) {
           toast.error(err.message);
@@ -128,18 +130,19 @@ const MessageContainer = ({
       autoScroll={autoScroll}
       setAutoScroll={setAutoScroll}
       context={{
+        highlightedMessage,
         askUser,
         avatars,
         defaultCollapseContent: appSettings.defaultCollapseContent,
         expandAll: appSettings.expandAll,
         hideCot: appSettings.hideCot,
-        highlightedMessage,
         loading,
         showFeedbackButtons: enableFeedback,
         uiName: projectSettings?.ui?.name || '',
         onPlaygroundButtonClick,
         onFeedbackUpdated,
-        onElementRefClick
+        onElementRefClick,
+        onError: (error) => toast.error(error)
       }}
     />
   );

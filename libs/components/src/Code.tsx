@@ -3,7 +3,7 @@ import { PrismAsync as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { dracula } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { grey } from 'theme/palette';
 
-import { Box } from '@mui/material';
+import Box from '@mui/material/Box';
 
 import { useIsDarkMode } from 'hooks/useIsDarkMode';
 
@@ -33,7 +33,7 @@ const Code = ({ inline, children, ...props }: CodeProps) => {
         <code
           {...props}
           style={{
-            background: isDarkMode ? grey[800] : grey[200],
+            background: isDarkMode ? grey[900] : grey[200],
             borderRadius: '4px',
             padding: '0.2em 0.4em',
             overflowX: 'auto'
@@ -46,7 +46,7 @@ const Code = ({ inline, children, ...props }: CodeProps) => {
       return (
         <Box
           sx={{
-            background: isDarkMode ? grey[800] : grey[200],
+            background: isDarkMode ? grey[900] : grey[200],
             borderRadius: '4px',
             padding: (theme) => theme.spacing(1),
             paddingRight: '2.5em',

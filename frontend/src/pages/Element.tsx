@@ -1,21 +1,18 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { useRecoilValue } from 'recoil';
 
 import Page from 'pages/Page';
 
-import { ElementView, IMessageElement } from '@chainlit/components';
+import { ElementView, IMessageElement, useChat } from '@chainlit/components';
 
 import { useQuery } from 'hooks/query';
 import { useApi } from 'hooks/useApi';
 
-import { elementState } from 'state/element';
-
 export default function Element() {
   const { id } = useParams();
   const query = useQuery();
+  const { elements } = useChat();
 
-  const elements = useRecoilValue(elementState);
   const [element, setElement] = useState<IMessageElement | null>(null);
 
   const conversationId = query.get('conversation');
@@ -26,15 +23,17 @@ export default function Element() {
       : null
   );
 
-  if (data) {
-    setElement(data);
-  } else if (id && !conversationId && !element) {
-    const foundElement = elements.find((element) => element.id === id);
+  useEffect(() => {
+    if (data) {
+      setElement(data);
+    } else if (id && !conversationId && !element) {
+      const foundElement = elements.find((element) => element.id === id);
 
-    if (foundElement) {
-      setElement(foundElement);
+      if (foundElement) {
+        setElement(foundElement);
+      }
     }
-  }
+  }, [data, element, elements, id, conversationId]);
 
   if (!element || error) {
     return null;

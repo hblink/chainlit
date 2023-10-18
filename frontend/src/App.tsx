@@ -1,20 +1,26 @@
+import { wsEndpoint } from 'api';
+import { useEffect } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { RouterProvider } from 'react-router-dom';
 import { useRecoilValue } from 'recoil';
 import { router } from 'router';
 
-import { Box, GlobalStyles, Theme } from '@mui/material';
-import { ThemeProvider } from '@mui/material';
+import { Box, GlobalStyles } from '@mui/material';
+import { Theme, ThemeProvider } from '@mui/material/styles';
 
+import { useChat } from '@chainlit/components';
 import { makeTheme } from '@chainlit/components/theme';
 
 import Hotkeys from 'components/Hotkeys';
 import SettingsModal from 'components/molecules/settingsModal';
 import ChatSettingsModal from 'components/organisms/chat/settings';
 import PromptPlayground from 'components/organisms/playground';
-import Socket from 'components/socket';
 
+import { useAuth } from 'hooks/auth';
+
+import { chatProfile, projectSettingsState } from 'state/project';
 import { settingsState } from 'state/settings';
+import { userEnvState } from 'state/user';
 
 import './App.css';
 
@@ -63,7 +69,39 @@ function overrideTheme(theme: Theme) {
 
 function App() {
   const { theme: themeVariant } = useRecoilValue(settingsState);
+  const pSettings = useRecoilValue(projectSettingsState);
+  const chatProfileValue = useRecoilValue(chatProfile);
   const theme = overrideTheme(makeTheme(themeVariant));
+  const { isAuthenticated, accessToken } = useAuth();
+  const userEnv = useRecoilValue(userEnvState);
+  const { connect } = useChat();
+
+  useEffect(() => {
+    if (
+      isAuthenticated &&
+      pSettings?.chatProfiles &&
+      (pSettings.chatProfiles.length <= 1 || chatProfileValue)
+    ) {
+      // Autoselect the chat profile if there is only one
+      const chatProfile =
+        pSettings.chatProfiles.length === 1
+          ? pSettings.chatProfiles[0].name
+          : chatProfileValue;
+      connect({
+        wsEndpoint,
+        userEnv,
+        accessToken,
+        chatProfile
+      });
+    }
+  }, [
+    userEnv,
+    accessToken,
+    isAuthenticated,
+    connect,
+    pSettings?.chatProfiles,
+    chatProfileValue
+  ]);
 
   return (
     <ThemeProvider theme={theme}>
@@ -89,10 +127,14 @@ function App() {
           }
         }}
       />
-      <Box display="flex" height="100vh" width="100vw">
+      <Box
+        display="flex"
+        height="100vh"
+        width="100vw"
+        sx={{ overflowX: 'hidden' }}
+      >
         <PromptPlayground />
         <ChatSettingsModal />
-        <Socket />
         <Hotkeys />
         <SettingsModal />
         <RouterProvider router={router} />

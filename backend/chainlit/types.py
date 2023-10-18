@@ -1,19 +1,16 @@
 from enum import Enum
-from typing import Any, Dict, List, Literal, Optional, TypedDict, Union
+from typing import Dict, List, Literal, Optional, TypedDict, Union
 
+from chainlit.client.base import ConversationFilter, MessageDict, Pagination
+from chainlit.element import File
 from chainlit.prompt import Prompt
 from dataclasses_json import DataClassJsonMixin
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from pydantic.dataclasses import dataclass
 
 InputWidgetType = Literal[
     "switch", "slider", "select", "textinput", "tags", "numberinput"
 ]
-ElementType = Literal[
-    "image", "avatar", "text", "pdf", "tasklist", "audio", "video", "file"
-]
-ElementDisplay = Literal["inline", "side", "page"]
-ElementSize = Literal["small", "medium", "large"]
 
 
 @dataclass
@@ -24,11 +21,16 @@ class FileSpec(DataClassJsonMixin):
 
 
 @dataclass
+class ActionSpec(DataClassJsonMixin):
+    keys: List[str]
+
+
+@dataclass
 class AskSpec(DataClassJsonMixin):
     """Specification for asking the user."""
 
     timeout: int
-    type: Literal["text", "file"]
+    type: Literal["text", "file", "action"]
 
 
 @dataclass
@@ -36,9 +38,19 @@ class AskFileSpec(FileSpec, AskSpec, DataClassJsonMixin):
     """Specification for asking the user a file."""
 
 
+@dataclass
+class AskActionSpec(ActionSpec, AskSpec, DataClassJsonMixin):
+    """Specification for asking the user an action"""
+
+
 class AskResponse(TypedDict):
     content: str
     author: str
+
+
+class UIMessagePayload(TypedDict):
+    message: MessageDict
+    files: Optional[List[Dict]]
 
 
 @dataclass
@@ -50,6 +62,16 @@ class AskFileResponse:
     content: bytes
 
 
+class AskActionResponse(TypedDict):
+    name: str
+    value: str
+    label: str
+    description: str
+    forId: str
+    id: str
+    collapsed: bool
+
+
 class CompletionRequest(BaseModel):
     prompt: Prompt
     userEnv: Dict[str, str]
@@ -58,21 +80,11 @@ class CompletionRequest(BaseModel):
 class UpdateFeedbackRequest(BaseModel):
     messageId: str
     feedback: Literal[-1, 0, 1]
+    feedbackComment: Optional[str] = None
 
 
 class DeleteConversationRequest(BaseModel):
     conversationId: str
-
-
-class Pagination(BaseModel):
-    first: int
-    cursor: Any
-
-
-class ConversationFilter(BaseModel):
-    feedback: Optional[Literal[-1, 0, 1]]
-    username: Optional[str]
-    search: Optional[str]
 
 
 class GetConversationsRequest(BaseModel):
@@ -85,26 +97,10 @@ class Theme(str, Enum):
     dark = "dark"
 
 
-Role = Literal["USER", "ADMIN", "OWNER", "ANONYMOUS"]
-Provider = Literal["credentials", "header", "github", "google", "azure-ad"]
-
-
-# Used when logging-in a user
 @dataclass
-class AppUser(DataClassJsonMixin):
-    username: str
-    role: Role = "USER"
-    tags: List[str] = Field(default_factory=list)
-    image: Optional[str] = None
-    provider: Optional[Provider] = None
+class ChatProfile(DataClassJsonMixin):
+    """Specification for a chat profile that can be chosen by the user at the conversation start."""
 
-
-@dataclass
-class PersistedAppUserFields:
-    id: str
-    createdAt: int
-
-
-@dataclass
-class PersistedAppUser(AppUser, PersistedAppUserFields):
-    pass
+    name: str
+    markdown_description: str
+    icon: Optional[str] = None

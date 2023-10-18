@@ -3,10 +3,10 @@ from datetime import datetime, timedelta
 from typing import Any, Dict
 
 import jwt
-from chainlit.client.cloud import chainlit_client
+from chainlit.client.cloud import AppUser
 from chainlit.config import config
+from chainlit.data import chainlit_client
 from chainlit.oauth_providers import get_configured_oauth_providers
-from chainlit.types import AppUser
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 
@@ -58,10 +58,7 @@ def create_jwt(data: AppUser) -> str:
     return encoded_jwt
 
 
-async def get_current_user(token: str = Depends(reuseable_oauth)):
-    if not require_login():
-        return None
-
+async def authenticate_user(token: str = Depends(reuseable_oauth)):
     try:
         dict = jwt.decode(
             token,
@@ -85,3 +82,10 @@ async def get_current_user(token: str = Depends(reuseable_oauth)):
         return persisted_app_user
     else:
         return app_user
+
+
+async def get_current_user(token: str = Depends(reuseable_oauth)):
+    if not require_login():
+        return None
+
+    return await authenticate_user(token)

@@ -17,8 +17,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from chainlit.auth import create_jwt, get_configuration, get_current_user
-from chainlit.client.acl import is_conversation_author
-from chainlit.client.cloud import chainlit_client
+from chainlit.client.cloud import AppUser, PersistedAppUser
 from chainlit.config import (
     APP_ROOT,
     BACKEND_ROOT,
@@ -28,24 +27,25 @@ from chainlit.config import (
     load_module,
     reload_config,
 )
+from chainlit.data import chainlit_client
+from chainlit.data.acl import is_conversation_author
 from chainlit.logger import logger
 from chainlit.markdown import get_markdown_str
 from chainlit.playground.config import get_llm_providers
 from chainlit.telemetry import trace_event
 from chainlit.types import (
-    AppUser,
     CompletionRequest,
     DeleteConversationRequest,
     GetConversationsRequest,
-    PersistedAppUser,
     Theme,
     UpdateFeedbackRequest,
 )
-from fastapi import Cookie, Depends, FastAPI, HTTPException, Query, Request, status
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 from fastapi_socketio import SocketManager
+from starlette.datastructures import URL
 from starlette.middleware.cors import CORSMiddleware
 from typing_extensions import Annotated
 from watchfiles import awatch
@@ -95,7 +95,7 @@ async def lifespan(app: FastAPI):
                         # Reload the module if the module name is specified in the config
                         if config.run.module_name:
                             try:
-                                load_module(config.run.module_name)
+                                load_module(config.run.module_name, force_refresh=True)
                             except Exception as e:
                                 logger.error(f"Error reloading module: {e}")
                                 break
@@ -208,6 +208,30 @@ def get_html_template():
         return content
 
 
+def get_user_facing_url(url: URL):
+    """
+    Return the user facing URL for a given URL.
+    Handles deployment with proxies (like cloud run).
+    """
+
+    chainlit_url = os.environ.get("CHAINLIT_URL")
+
+    # No config, we keep the URL as is
+    if not chainlit_url:
+        url = url.replace(query="", fragment="")
+        return url.__str__()
+
+    config_url = URL(chainlit_url).replace(
+        query="",
+        fragment="",
+    )
+    # Remove trailing slash from config URL
+    if config_url.path.endswith("/"):
+        config_url = config_url.replace(path=config_url.path[:-1])
+
+    return config_url.__str__() + url.path
+
+
 @app.get("/auth/config")
 async def auth(request: Request):
     return get_configuration()
@@ -283,7 +307,7 @@ async def oauth_login(provider_id: str, request: Request):
     params = urllib.parse.urlencode(
         {
             "client_id": provider.client_id,
-            "redirect_uri": f"{request.url}/callback",
+            "redirect_uri": f"{get_user_facing_url(request.url)}/callback",
             "state": random,
             **provider.authorize_params,
         }
@@ -342,7 +366,7 @@ async def oauth_callback(
             detail="Unauthorized",
         )
 
-    url = request.url.replace(query="").__str__()
+    url = get_user_facing_url(request.url)
     token = await provider.get_token(code, url)
 
     (raw_user_data, default_app_user) = await provider.get_user_info(token)
@@ -416,12 +440,19 @@ async def project_settings(
     current_user: Annotated[Union[AppUser, PersistedAppUser], Depends(get_current_user)]
 ):
     """Return project settings. This is called by the UI before the establishing the websocket connection."""
+    profiles = []
+    if config.code.set_chat_profiles:
+        chat_profiles = await config.code.set_chat_profiles(current_user)
+        if chat_profiles:
+            profiles = [p.to_dict() for p in chat_profiles]
     return JSONResponse(
         content={
             "ui": config.ui.to_dict(),
+            "features": config.features.to_dict(),
             "userEnv": config.project.user_env,
             "dataPersistence": config.data_persistence,
             "markdown": get_markdown_str(config.root),
+            "chatProfiles": profiles,
         }
     )
 
@@ -442,7 +473,9 @@ async def update_feedback(
         raise HTTPException(status_code=400, detail="Data persistence is not enabled")
 
     await chainlit_client.set_human_feedback(
-        message_id=update.messageId, feedback=update.feedback
+        message_id=update.messageId,
+        feedback=update.feedback,
+        feedbackComment=update.feedbackComment,
     )
     return JSONResponse(content={"success": True})
 
@@ -570,7 +603,7 @@ async def get_logo(theme: Optional[Theme] = Query(Theme.light)):
         os.path.join(APP_ROOT, "public", f"logo_{theme_value}.*"),
         os.path.join(build_dir, "assets", f"logo_{theme_value}*.*"),
     ]:
-        files = glob.glob(os.path.join(build_dir, path))
+        files = glob.glob(path)
 
         if files:
             logo_path = files[0]

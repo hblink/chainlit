@@ -2,8 +2,9 @@ import { MessageContext } from 'contexts/MessageContext';
 import { useContext } from 'react';
 import { GreyButton } from 'src/buttons/GreyButton';
 
-import { ExpandLess, ExpandMore } from '@mui/icons-material';
-import { CircularProgress } from '@mui/material';
+import ExpandLess from '@mui/icons-material/ExpandLess';
+import ExpandMore from '@mui/icons-material/ExpandMore';
+import CircularProgress from '@mui/material/CircularProgress';
 
 import { INestedMessage } from 'src/types/message';
 
@@ -25,9 +26,8 @@ const DetailsButton = ({ message, opened, onClick, loading }: Props) => {
     : undefined;
 
   const isRunningEmptyStep = loading && !message.content;
-  const isRunningUserMessage = loading && message.authorIsUser;
 
-  const show = nested || isRunningEmptyStep || isRunningUserMessage;
+  const show = tool || isRunningEmptyStep;
 
   if (!show || messageContext.hideCot) {
     return null;
@@ -57,11 +57,6 @@ const DetailsButton = ({ message, opened, onClick, loading }: Props) => {
   return (
     <GreyButton
       id={id}
-      disableElevation
-      disableRipple
-      sx={{
-        textTransform: 'none'
-      }}
       color="primary"
       startIcon={
         loading ? <CircularProgress color="inherit" size={16} /> : undefined

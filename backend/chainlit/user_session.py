@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Dict, Optional, TypedDict, Union
 
 if TYPE_CHECKING:
     from chainlit.message import Message
-    from chainlit.types import AppUser, PersistedAppUser
+    from chainlit.client.base import AppUser, PersistedAppUser
 
 from chainlit.context import context
 
@@ -13,6 +13,7 @@ class UserSessionDict(TypedDict):
     headers: Dict[str, str]
     user: Optional[Union["AppUser", "PersistedAppUser"]]
     root_message: Optional["Message"]
+    chat_profile: Optional[str]
 
 
 user_sessions: Dict[str, UserSessionDict] = {}
@@ -25,7 +26,7 @@ class UserSession:
     """
 
     def get(self, key, default=None):
-        if not context.emitter:
+        if not context.session:
             return default
 
         if context.session.id not in user_sessions:
@@ -39,6 +40,7 @@ class UserSession:
         user_session["env"] = context.session.user_env
         user_session["chat_settings"] = context.session.chat_settings
         user_session["user"] = context.session.user
+        user_session["chat_profile"] = context.session.chat_profile
 
         if context.session.root_message:
             user_session["root_message"] = context.session.root_message
@@ -46,7 +48,7 @@ class UserSession:
         return user_session.get(key, default)
 
     def set(self, key, value):
-        if not context.emitter:
+        if not context.session:
             return None
 
         if context.session.id not in user_sessions:

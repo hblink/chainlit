@@ -1,8 +1,11 @@
 import { IPrompt } from '@chainlit/components';
 
-import { IPageInfo, IPagination } from 'components/organisms/dataset/table';
+import {
+  IPageInfo,
+  IPagination
+} from 'components/organisms/conversationsHistory/sidebar/ConversationsHistoryList';
 
-import { IDatasetFilters } from 'state/dataset';
+import { IConversationsFilters } from 'state/conversations';
 
 import { IChat } from 'types/chat';
 
@@ -57,14 +60,19 @@ const ChainlitAPI = {
   setHumanFeedback: async (
     messageId: string,
     feedback: number,
+    feedbackComment?: string,
     accessToken?: string
   ) => {
-    await api.put(`/message/feedback`, { messageId, feedback }, accessToken);
+    await api.put(
+      `/message/feedback`,
+      { messageId, feedback, feedbackComment },
+      accessToken
+    );
   },
 
   getConversations: async (
     pagination: IPagination,
-    filter: IDatasetFilters,
+    filter: IConversationsFilters,
     accessToken?: string
   ): Promise<{
     pageInfo: IPageInfo;
@@ -79,7 +87,7 @@ const ChainlitAPI = {
     return res?.json();
   },
 
-  deleteConversation: async (conversationId: number, accessToken?: string) => {
+  deleteConversation: async (conversationId: string, accessToken?: string) => {
     const res = await api.delete(
       `/project/conversation`,
       { conversationId },

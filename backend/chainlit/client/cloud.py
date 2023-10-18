@@ -1,25 +1,31 @@
-import os
 import uuid
-from typing import Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import aiohttp
-from chainlit.config import config
 from chainlit.logger import logger
-from chainlit.types import AppUser, ConversationFilter, Pagination, PersistedAppUser
 
 from .base import (
+    AppUser,
     ChainlitGraphQLClient,
     ConversationDict,
+    ConversationFilter,
     ElementDict,
     MessageDict,
     PageInfo,
     PaginatedResponse,
+    Pagination,
+    PersistedAppUser,
 )
 
 
 class ChainlitCloudClient(ChainlitGraphQLClient):
-    def __init__(self, api_key: str):
-        super().__init__(api_key=api_key)
+    chainlit_server: str
+
+    def __init__(self, api_key: str, chainlit_server="https://cloud.chainlit.io"):
+        # Remove trailing slash
+        chainlit_server = chainlit_server.rstrip("/")
+        super().__init__(api_key=api_key, chainlit_server=chainlit_server)
+        self.chainlit_server = chainlit_server
 
     async def create_app_user(self, app_user: AppUser) -> Optional[PersistedAppUser]:
         mutation = """
@@ -107,15 +113,23 @@ class ChainlitCloudClient(ChainlitGraphQLClient):
 
         return True
 
-    async def create_conversation(self, app_user_id: Optional[str]) -> Optional[str]:
+    async def create_conversation(
+        self, app_user_id: Optional[str], tags: Optional[List[str]]
+    ) -> Optional[str]:
         mutation = """
-        mutation ($appUserId: String) {
-            createConversation (appUserId: $appUserId) {
+        mutation ($appUserId: String, $tags: [String!]) {
+            createConversation (appUserId: $appUserId, tags: $tags) {
                 id
             }
         }
         """
-        variables = {"appUserId": app_user_id} if app_user_id else {}
+        variables = {}  # type: Dict[str, Any]
+        if app_user_id is not None:
+            variables["appUserId"] = app_user_id
+
+        if tags:
+            variables["tags"] = tags
+
         res = await self.mutation(mutation, variables)
 
         if self.check_for_errors(res):
@@ -165,6 +179,7 @@ class ChainlitCloudClient(ChainlitGraphQLClient):
             conversation(id: $id) {
                 id
                 createdAt
+                tags
                 messages {
                     id
                     isError
@@ -174,6 +189,7 @@ class ChainlitCloudClient(ChainlitGraphQLClient):
                     content
                     waitForAnswer
                     humanFeedback
+                    humanFeedbackComment
                     disableHumanFeedback
                     language
                     prompt
@@ -185,6 +201,7 @@ class ChainlitCloudClient(ChainlitGraphQLClient):
                     conversationId
                     type
                     name
+                    mime
                     url
                     display
                     language
@@ -228,6 +245,7 @@ class ChainlitCloudClient(ChainlitGraphQLClient):
             node {
             id
             createdAt
+            tags
             elementCount
             messageCount
             appUser {
@@ -267,14 +285,22 @@ class ChainlitCloudClient(ChainlitGraphQLClient):
             data=conversations,
         )
 
-    async def set_human_feedback(self, message_id: str, feedback: int) -> bool:
-        mutation = """mutation ($messageId: ID!, $humanFeedback: Int!) {
-                        setHumanFeedback(messageId: $messageId, humanFeedback: $humanFeedback) {
+    async def set_human_feedback(
+        self, message_id: str, feedback: int, feedbackComment: Optional[str]
+    ) -> bool:
+        mutation = """mutation ($messageId: ID!, $humanFeedback: Int!, $humanFeedbackComment: String) {
+                    setHumanFeedback(messageId: $messageId, humanFeedback: $humanFeedback, humanFeedbackComment: $humanFeedbackComment) {
                             id
                             humanFeedback
+                            humanFeedbackComment
                     }
                 }"""
-        variables = {"messageId": message_id, "humanFeedback": feedback}
+        variables = {
+            "messageId": message_id,
+            "humanFeedback": feedback,
+        }
+        if feedbackComment:
+            variables["humanFeedbackComment"] = feedbackComment
         res = await self.mutation(mutation, variables)
         self.check_for_errors(res, raise_error=True)
 
@@ -345,6 +371,7 @@ class ChainlitCloudClient(ChainlitGraphQLClient):
         conversationId
         type
         name
+        mime
         url
         display
         language
@@ -364,8 +391,8 @@ class ChainlitCloudClient(ChainlitGraphQLClient):
 
     async def create_element(self, variables: ElementDict) -> Optional[ElementDict]:
         mutation = """
-        mutation ($conversationId: ID!, $type: String!, $name: String!, $display: String!, $forIds: [String!]!, $url: String, $objectKey: String, $size: String, $language: String) {
-            createElement(conversationId: $conversationId, type: $type, url: $url, objectKey: $objectKey, name: $name, display: $display, size: $size, language: $language, forIds: $forIds) {
+        mutation ($conversationId: ID!, $type: String!, $name: String!, $display: String!, $forIds: [String!]!, $url: String, $objectKey: String, $size: String, $language: String, $mime: String) {
+            createElement(conversationId: $conversationId, type: $type, url: $url, objectKey: $objectKey, name: $name, display: $display, size: $size, language: $language, forIds: $forIds, mime: $mime) {
                 id,
                 type,
                 url,
@@ -374,7 +401,8 @@ class ChainlitCloudClient(ChainlitGraphQLClient):
                 display,
                 size,
                 language,
-                forIds
+                forIds,
+                mime
             }
         }
         """
@@ -403,15 +431,20 @@ class ChainlitCloudClient(ChainlitGraphQLClient):
 
         return res["data"]["updateElement"]
 
-    async def upload_element(self, content: Union[bytes, str], mime: str) -> Dict:
+    async def upload_element(
+        self, content: Union[bytes, str], mime: str, conversation_id: Optional[str]
+    ) -> Dict:
         id = str(uuid.uuid4())
         body = {"fileName": id, "contentType": mime}
+
+        if conversation_id:
+            body["conversationId"] = conversation_id
 
         path = f"/api/upload/file"
 
         async with aiohttp.ClientSession() as session:
             async with session.post(
-                f"{config.chainlit_server}{path}",
+                f"{self.chainlit_server}{path}",
                 json=body,
                 headers=self.headers,
             ) as r:
@@ -445,11 +478,3 @@ class ChainlitCloudClient(ChainlitGraphQLClient):
 
                 url = f'{upload_details["url"]}/{object_key}'
                 return {"object_key": object_key, "url": signed_url}
-
-
-chainlit_client = None  # type: Optional[ChainlitCloudClient]
-
-if config.data_persistence:
-    chainlit_client = ChainlitCloudClient(
-        api_key=os.environ.get("CHAINLIT_API_KEY", "")
-    )

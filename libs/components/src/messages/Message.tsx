@@ -2,12 +2,13 @@ import { keyframes } from '@emotion/react';
 import { MessageContext } from 'contexts/MessageContext';
 import { useContext, useEffect, useState } from 'react';
 
-import { Box, Stack } from '@mui/material';
+import Box from '@mui/material/Box';
+import Stack from '@mui/material/Stack';
 
 import { AskUploadButton } from './components/AskUploadButton';
 import { AUTHOR_BOX_WIDTH, Author } from './components/Author';
-import { Buttons } from './components/Buttons';
 import { DetailsButton } from './components/DetailsButton';
+import { MessageActions } from './components/MessageActions';
 import { MessageContent } from './components/MessageContent';
 
 import { IAction } from 'src/types/action';
@@ -52,7 +53,12 @@ const Message = ({
     <Box
       sx={{
         color: 'text.primary',
-        backgroundColor: 'transparent'
+        backgroundColor: (theme) =>
+          message.authorIsUser
+            ? 'transparent'
+            : theme.palette.mode === 'dark'
+            ? theme.palette.grey[800]
+            : theme.palette.grey[100]
       }}
       className="message"
     >
@@ -61,6 +67,7 @@ const Message = ({
           boxSizing: 'border-box',
           mx: 'auto',
           maxWidth: '60rem',
+          px: 2,
           display: 'flex',
           flexDirection: 'column',
           position: 'relative'
@@ -77,23 +84,15 @@ const Message = ({
             animation:
               message.id && messageContext.highlightedMessage === message.id
                 ? `3s ease-in-out 0.1s ${flash}`
-                : 'none'
+                : 'none',
+            overflowX: 'auto'
           }}
         >
           <Author message={message} show={showAvatar} />
-          <Stack
-            alignItems="flex-start"
-            width={0}
-            flexGrow={1}
-            spacing={1}
-            minWidth={200}
-          >
+          <Stack alignItems="flex-start" width={0} flexGrow={1} spacing={1}>
             <MessageContent
-              authorIsUser={message.authorIsUser}
               elements={elements}
-              id={message.id}
-              content={message.content}
-              language={message.language}
+              message={message}
               preserveSize={
                 !!message.streaming || !messageContext.defaultCollapseContent
               }
@@ -105,9 +104,9 @@ const Message = ({
               loading={isRunning}
             />
             {!isRunning && isLast && message.waitForAnswer && (
-              <AskUploadButton />
+              <AskUploadButton onError={messageContext.onError} />
             )}
-            <Buttons message={message} actions={actions} />
+            <MessageActions message={message} actions={actions} />
           </Stack>
         </Stack>
       </Box>
