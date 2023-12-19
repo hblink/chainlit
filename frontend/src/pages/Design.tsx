@@ -1,18 +1,21 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { useRecoilState } from 'recoil';
 
 import { Typography } from '@mui/material';
 import Box from '@mui/material/Box';
 
-import { FormInput, InputLabel, Toggle } from '@chainlit/components';
-import { useIsDarkMode } from '@chainlit/components';
-import { green, grey, primary } from '@chainlit/components/theme';
+import {
+  FormInput,
+  InputLabel,
+  Toggle,
+  useIsDarkMode
+} from '@chainlit/react-components';
+import { green, grey, primary } from '@chainlit/react-components/theme';
 
 import { settingsState } from 'state/settings';
 
 export default function Design(): JSX.Element {
-  const navigate = useNavigate();
   const [settings, setSettings] = useRecoilState(settingsState);
   const isDarkMode = useIsDarkMode();
   const [tab, setTab] = useState('Platform');
@@ -22,8 +25,7 @@ export default function Design(): JSX.Element {
   };
 
   if (process.env.NODE_ENV === 'production') {
-    navigate && navigate('/');
-    return <></>;
+    return <Navigate to="/" />;
   }
 
   const ContainerBox = ({

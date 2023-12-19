@@ -1,28 +1,27 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useRecoilState, useRecoilValue } from 'recoil';
+import size from 'lodash/size';
+import { useState } from 'react';
+import { useRecoilValue } from 'recoil';
 
 import { Box, Popover, Tab, Tabs } from '@mui/material';
 
+import { useChatInteract, useChatSession } from '@chainlit/react-client';
 import {
   InputStateHandler,
+  Markdown,
   grey,
-  useChat,
   useIsDarkMode
-} from '@chainlit/components';
+} from '@chainlit/react-components';
 
-import { chatProfile, projectSettingsState } from 'state/project';
+import { projectSettingsState } from 'state/project';
 
-import Markdown from './markdown';
 import NewChatDialog from './newChatDialog';
 
 export default function ChatProfiles() {
-  const navigate = useNavigate();
   const pSettings = useRecoilValue(projectSettingsState);
-  const [chatProfileValue, setChatProfile] = useRecoilState(chatProfile);
+  const { chatProfile, setChatProfile } = useChatSession();
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [chatProfileDescription, setChatProfileDescription] = useState('');
-  const { clear } = useChat();
+  const { clear } = useChatInteract();
   const [newChatProfile, setNewChatProfile] = useState<string | null>(null);
   const [openDialog, setOpenDialog] = useState(false);
   const isDarkMode = useIsDarkMode();
@@ -40,34 +39,25 @@ export default function ChatProfiles() {
     setChatProfile(newChatProfile);
     setNewChatProfile(null);
     clear();
-    navigate('/');
     handleClose();
   };
 
-  useEffect(() => {
-    if (
-      !chatProfileValue &&
-      pSettings?.chatProfiles &&
-      pSettings.chatProfiles.length > 0
-    ) {
-      setChatProfile(pSettings.chatProfiles[0].name);
-    }
-  }, [pSettings?.chatProfiles, chatProfileValue]);
+  if (!chatProfile && size(pSettings?.chatProfiles) > 0) {
+    setChatProfile(pSettings?.chatProfiles[0].name);
+  }
 
   if (typeof pSettings === 'undefined' || pSettings.chatProfiles.length <= 1) {
     return null;
   }
 
+  const allowHtml = pSettings?.features?.unsafe_allow_html;
+  const latex = pSettings?.features?.latex;
+
   const popoverOpen = Boolean(anchorEl);
 
   return (
-    <Box py={2} alignSelf="center" maxWidth="min(60rem, 90vw)" overflow="auto">
-      <InputStateHandler
-        id={'chat-profile-selector'}
-        sx={{
-          width: 'fit-content'
-        }}
-      >
+    <Box pt={1} pb={2} alignSelf="center" maxWidth="min(60rem, 90vw)">
+      <InputStateHandler id={'chat-profile-selector'}>
         <Box
           sx={{
             border: (theme) => `1px solid ${theme.palette.divider}`,
@@ -77,11 +67,12 @@ export default function ChatProfiles() {
           }}
         >
           <Tabs
-            value={chatProfileValue || ''}
+            value={chatProfile || ''}
             onChange={(event: React.SyntheticEvent, newValue: string) => {
               setNewChatProfile(newValue);
               setOpenDialog(true);
             }}
+            variant="scrollable"
             sx={{
               minHeight: '40px !important',
 
@@ -118,9 +109,7 @@ export default function ChatProfiles() {
                 sx={{
                   '& .chat-profile-icon': {
                     filter:
-                      item.name !== chatProfileValue
-                        ? 'grayscale(100%)'
-                        : undefined
+                      item.name !== chatProfile ? 'grayscale(100%)' : undefined
                   },
                   '&:hover': {
                     '& .chat-profile-icon': { filter: 'grayscale(0%)' }
@@ -181,7 +170,9 @@ export default function ChatProfiles() {
         disableRestoreFocus
       >
         <Box p={2} maxWidth="20rem">
-          <Markdown content={chatProfileDescription} />
+          <Markdown allowHtml={allowHtml} latex={latex}>
+            {chatProfileDescription}
+          </Markdown>
         </Box>
       </Popover>
       <NewChatDialog

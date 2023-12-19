@@ -4,14 +4,15 @@ import { useNavigate } from 'react-router-dom';
 import AddIcon from '@mui/icons-material/Add';
 import { Box } from '@mui/material';
 
-import { AccentButton, useChat } from '@chainlit/components';
+import { useChatInteract } from '@chainlit/react-client';
+import { AccentButton } from '@chainlit/react-components';
 
 import NewChatDialog from './newChatDialog';
 
 export default function NewChatButton() {
-  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const { clear } = useChat();
+  const navigate = useNavigate();
+  const { clear } = useChatInteract();
 
   const handleClickOpen = () => {
     setOpen(true);

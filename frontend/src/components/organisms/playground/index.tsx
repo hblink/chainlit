@@ -1,41 +1,36 @@
-import { ChainlitAPI } from 'api/chainlitApi';
-import { useCallback, useEffect } from 'react';
-import { toast } from 'react-hot-toast';
-import { useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil';
+import { apiClient } from 'api';
+import { useCallback } from 'react';
+import { useRecoilState, useRecoilValue } from 'recoil';
+import { toast } from 'sonner';
+
+import { IGeneration, accessTokenState } from '@chainlit/react-client';
+import {
+  IPlaygroundContext,
+  PromptPlayground
+} from '@chainlit/react-components';
+
+import { useLLMProviders } from 'hooks/useLLMProviders';
 
 import {
-  IPlayground,
-  IPlaygroundContext,
-  IPrompt,
-  PromptPlayground
-} from '@chainlit/components';
-
-import { useApi } from 'hooks/useApi';
-
-import { modeState, playgroundState, variableState } from 'state/playground';
-import { accessTokenState, userEnvState } from 'state/user';
-
-function LLMProviders() {
-  const { data, error } = useApi<IPlayground>('/project/llm-providers');
-  const setPlayground = useSetRecoilState(playgroundState);
-
-  useEffect(() => {
-    if (error) {
-      toast.error(`Failed to fetch providers: ${error}`);
-    }
-    if (!data) return;
-    setPlayground((old) => ({ ...old, providers: data.providers }));
-  }, [data, error]);
-
-  return null;
-}
+  functionState,
+  modeState,
+  playgroundState,
+  variableState
+} from 'state/playground';
+import { userEnvState } from 'state/user';
 
 export default function PlaygroundWrapper() {
   const accessToken = useRecoilValue(accessTokenState);
   const userEnv = useRecoilValue(userEnvState);
   const [variableName, setVariableName] = useRecoilState(variableState);
+  const [functionIndex, setFunctionIndex] = useRecoilState(functionState);
   const [playground, setPlayground] = useRecoilState(playgroundState);
   const [promptMode, setPromptMode] = useRecoilState(modeState);
+
+  const shoulFetchProviders =
+    playground?.generation && !playground?.providers?.length;
+
+  useLLMProviders(shoulFetchProviders);
 
   const onNotification: IPlaygroundContext['onNotification'] = useCallback(
     (type, content) => {
@@ -55,12 +50,12 @@ export default function PlaygroundWrapper() {
 
   const createCompletion = useCallback(
     (
-      prompt: IPrompt,
+      generation: IGeneration,
       controller: AbortController,
       cb: (done: boolean, token: string) => void
     ) => {
-      return ChainlitAPI.getCompletion(
-        prompt,
+      return apiClient.getGeneration(
+        generation,
         userEnv,
         controller,
         accessToken,
@@ -70,23 +65,20 @@ export default function PlaygroundWrapper() {
     [accessToken]
   );
 
-  const fetchProviders = playground?.prompt && !playground?.providers?.length;
-
   return (
-    <>
-      {fetchProviders ? <LLMProviders /> : null}
-      <PromptPlayground
-        context={{
-          setVariableName,
-          variableName,
-          setPlayground,
-          playground,
-          onNotification,
-          createCompletion,
-          promptMode,
-          setPromptMode
-        }}
-      />
-    </>
+    <PromptPlayground
+      context={{
+        setFunctionIndex,
+        functionIndex,
+        setVariableName,
+        variableName,
+        setPlayground,
+        playground,
+        onNotification,
+        createCompletion,
+        promptMode,
+        setPromptMode
+      }}
+    />
   );
 }

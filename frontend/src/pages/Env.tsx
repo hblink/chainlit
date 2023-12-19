@@ -1,14 +1,14 @@
 import { useFormik } from 'formik';
-import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { useRecoilState, useRecoilValue } from 'recoil';
+import { toast } from 'sonner';
 import * as yup from 'yup';
 
 import { Alert, Box, Button, Typography } from '@mui/material';
 
-import { TextInput } from '@chainlit/components';
+import { TextInput } from '@chainlit/react-components';
 
-import TopBar from 'components/organisms/header';
+import { Header } from 'components/organisms/header';
 
 import { projectSettingsState } from 'state/project';
 import { userEnvState } from 'state/user';
@@ -16,6 +16,7 @@ import { userEnvState } from 'state/user';
 export default function Env() {
   const [userEnv, setUserEnv] = useRecoilState(userEnvState);
   const pSettings = useRecoilValue(projectSettingsState);
+
   const navigate = useNavigate();
 
   const requiredKeys = pSettings?.userEnv || [];
@@ -37,7 +38,7 @@ export default function Env() {
       localStorage.setItem('userEnv', JSON.stringify(values));
       setUserEnv(values);
       toast.success('Saved successfully');
-      navigate('/');
+      return navigate('/');
     }
   });
 
@@ -72,7 +73,7 @@ export default function Env() {
         flexGrow: 1
       }}
     >
-      <TopBar />
+      <Header />
       <Box
         id="env"
         display="flex"

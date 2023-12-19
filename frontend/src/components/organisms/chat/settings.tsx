@@ -1,5 +1,5 @@
 import { useFormik } from 'formik';
-import { mapValues } from 'lodash';
+import mapValues from 'lodash/mapValues';
 import { useRecoilState } from 'recoil';
 
 import {
@@ -10,23 +10,21 @@ import {
   DialogTitle
 } from '@mui/material';
 
+import { useChatData, useChatInteract } from '@chainlit/react-client';
 import {
   AccentButton,
   FormInput,
   RegularButton,
-  TFormInputValue,
-  useChat
-} from '@chainlit/components';
+  TFormInputValue
+} from '@chainlit/react-components';
 
 import { chatSettingsOpenState } from 'state/project';
 
 export default function ChatSettingsModal() {
-  const {
-    updateChatSettings,
-    chatSettingsValue,
-    chatSettingsInputs,
-    chatSettingsDefaultValue
-  } = useChat();
+  const { chatSettingsValue, chatSettingsInputs, chatSettingsDefaultValue } =
+    useChatData();
+
+  const { updateChatSettings } = useChatInteract();
   const [chatSettingsOpen, setChatSettingsOpen] = useRecoilState(
     chatSettingsOpenState
   );
@@ -72,7 +70,7 @@ export default function ChatSettingsModal() {
             gap: '15px'
           }}
         >
-          {chatSettingsInputs.map((input) => (
+          {chatSettingsInputs.map((input: any) => (
             <FormInput
               key={input.id}
               element={{

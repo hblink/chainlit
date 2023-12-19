@@ -6,7 +6,126 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-Nothing unreleased!
+Nothing is unreleased!
+
+## [1.0.0rc2] - 2023-12-18
+
+### Added
+
+- Copy button under messages
+- OAuth samesite cookie policy is now configurable through the `CHAINLIT_COOKIE_SAMESITE` env var
+
+### Changed
+
+- Relax Python version requirements
+- If `hide_cot` is configured to `true`, steps will never be sent to the UI, but still persisted.
+- Message buttons are now positioned below
+
+## [1.0.0rc0] - 2023-12-12
+
+### Added
+
+- cl.Step
+
+### Changed
+
+- File upload uses HTTP instead of WS and no longer has size limitation
+- `cl.AppUser` becomes `cl.User`
+- `Prompt` has been split in `ChatGeneration` and `CompletionGeneration`
+- `Action` now display a toaster in the UI while running
+
+## [0.7.700] - 2023-11-28
+
+### Added
+
+- Support for custom HTML in message content is now an opt in feature in the config
+- Uvicorn `ws_per_message_deflate` config param is now configurable like `UVICORN_WS_PER_MESSAGE_DEFLATE=false`
+
+### Changed
+
+- Latex support is no longer enabled by default and is now a feature in the config
+
+### Fixed
+
+- Fixed LCEL memory message order in the prompt playground
+- Fixed a key error when using the file watcher (-w)
+- Fixed several user experience issues with `on_chat_resume`
+- `on_chat_end` is now always called when a chat ends
+- Switching chat profiles correctly clears previous AskMessages
+
+## [0.7.604] - 2023-11-15
+
+### Fixed
+
+- `on_chat_resume` now works properly with non json serializable objects
+- `LangchainCallbackHandler` no longer send tokens to the wrong user under high concurrency
+- Langchain cache should work when `cache` is to `true` in `config.toml`
+
+## [0.7.603] - 2023-11-15
+
+### Fixed
+
+- Markdown links special characters are no longer encoded
+- Collapsed messages no longer make the chat scroll
+- Stringified Python objects are now displayed in a Python code block
+
+## [0.7.602] - 2023-11-14
+
+### Added
+
+- Latex support (only supporting $$ notation)
+- Go back button on element page
+
+### Fixed
+
+- Code blocks should no longer flicker or display `[object object]`.
+- Now properly displaying empty messages with inlined elements
+- Fixed `Too many values to unpack error` in langchain callback
+- Langchain final streamed answer is now annotable with human feedback
+- AzureOpenAI should now work properly in the Prompt Playground
+
+### Changed
+
+- Code blocks display has been enhanced
+- Replaced aiohttp with httpx
+- Prompt Playground has been updated to work with the new openai release (v1). Including tools
+- Auth0 oauth provider has a new configurable env variable `OAUTH_AUTH0_ORIGINAL_DOMAIN`
+
+## [0.7.500] - 2023-11-07
+
+### Added
+
+- `cl.on_chat_resume` decorator to enable users to continue a conversation.
+- Support for OpenAI functions in the Prompt Playground
+- Ability to add/remove messages in the Prompt Playground
+- Plotly element to display interactive charts
+
+### Fixed
+
+- Langchain intermediate steps display are now much more readable
+- Chat history loading latency has been enhanced
+- UTF-8 characters are now correctly displayed in json code blocks
+- Select widget `items` attribute is now working properly
+- Chat profiles widget is no longer scrolling horizontally
+
+## [0.7.400] - 2023-10-27
+
+### Added
+
+- Support for Langchain Expression Language. https://docs.chainlit.io/integrations/langchain
+- UI rendering optimization to guarantee high framerate
+- Chainlit Cloud latency optimization
+- Speech recognition to type messages. https://docs.chainlit.io/backend/config/features
+- Descope OAuth provider
+
+### Changed
+
+- `LangchainCallbackHandler` is now displaying inputs and outputs of intermediate steps.
+
+### Fixed
+
+- AskUserMessage now work properly with data persistence
+- You can now use a custom okta authorization server for authentication
 
 ## [0.7.3] - 2023-10-17
 

@@ -1,6 +1,7 @@
 import os
 import sys
 from importlib import util
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
 
 import tomli
@@ -12,8 +13,8 @@ from starlette.datastructures import Headers
 
 if TYPE_CHECKING:
     from chainlit.action import Action
-    from chainlit.client.base import AppUser
-    from chainlit.types import ChatProfile
+    from chainlit.types import ChatProfile, ThreadDict
+    from chainlit.user import User
 
 
 BACKEND_ROOT = os.path.dirname(__file__)
@@ -22,6 +23,10 @@ PACKAGE_ROOT = os.path.dirname(os.path.dirname(BACKEND_ROOT))
 
 # Get the directory the script is running from
 APP_ROOT = os.getcwd()
+
+# Create the directory to store the uploaded files
+FILES_DIRECTORY = Path(APP_ROOT) / ".files"
+FILES_DIRECTORY.mkdir(exist_ok=True)
 
 config_dir = os.path.join(APP_ROOT, ".chainlit")
 config_file = os.path.join(config_dir, "config.toml")
@@ -47,14 +52,26 @@ cache = false
 # Show the prompt playground
 prompt_playground = true
 
+# Process and display HTML in messages. This can be a security risk (see https://stackoverflow.com/questions/19603097/why-is-it-dangerous-to-render-user-generated-html-or-javascript)
+unsafe_allow_html = false
+
+# Process and display mathematical expressions. This can clash with "$" characters in messages.
+latex = false
+
 # Authorize users to upload files with messages
 multi_modal = true
+
+# Allows user to use speech to text
+[features.speech_to_text]
+    enabled = false
+    # See all languages here https://github.com/JamesBrill/react-speech-recognition/blob/HEAD/docs/API.md#language-string
+    # language = "en-US"
 
 [UI]
 # Name of the app and chatbot.
 name = "Chatbot"
 
-# Show the readme while the conversation is empty.
+# Show the readme while the thread is empty.
 show_readme_as_default = true
 
 # Description of the app and chatbot. This is used for HTML tags.
@@ -141,10 +158,19 @@ class Theme(DataClassJsonMixin):
     dark: Optional[Palette] = None
 
 
+@dataclass
+class SpeechToTextFeature:
+    enabled: Optional[bool] = None
+    language: Optional[str] = None
+
+
 @dataclass()
 class FeaturesSettings(DataClassJsonMixin):
     prompt_playground: bool = True
     multi_modal: bool = True
+    latex: bool = False
+    unsafe_allow_html: bool = False
+    speech_to_text: Optional[SpeechToTextFeature] = None
 
 
 @dataclass()
@@ -169,19 +195,20 @@ class CodeSettings:
     # Module object loaded from the module_name
     module: Any = None
     # Bunch of callbacks defined by the developer
-    password_auth_callback: Optional[Callable[[str, str], Optional["AppUser"]]] = None
-    header_auth_callback: Optional[Callable[[Headers], Optional["AppUser"]]] = None
+    password_auth_callback: Optional[Callable[[str, str], Optional["User"]]] = None
+    header_auth_callback: Optional[Callable[[Headers], Optional["User"]]] = None
     oauth_callback: Optional[
-        Callable[[str, str, Dict[str, str], "AppUser"], Optional["AppUser"]]
+        Callable[[str, str, Dict[str, str], "User"], Optional["User"]]
     ] = None
     on_stop: Optional[Callable[[], Any]] = None
     on_chat_start: Optional[Callable[[], Any]] = None
     on_chat_end: Optional[Callable[[], Any]] = None
+    on_chat_resume: Optional[Callable[["ThreadDict"], Any]] = None
     on_message: Optional[Callable[[str], Any]] = None
     author_rename: Optional[Callable[[str], str]] = None
     on_settings_update: Optional[Callable[[Dict[str, Any]], Any]] = None
     set_chat_profiles: Optional[
-        Callable[[Optional["AppUser"]], List["ChatProfile"]]
+        Callable[[Optional["User"]], List["ChatProfile"]]
     ] = None
 
 
@@ -207,8 +234,6 @@ class ChainlitConfig:
     root = APP_ROOT
     # Chainlit server URL. Used only for cloud features
     chainlit_server: str
-    # Whether or not a chainlit api key has been provided
-    data_persistence: bool
     # The url of the deployed app. Only set if the app is deployed.
     chainlit_prod_url = chainlit_prod_url
 
@@ -247,7 +272,7 @@ def load_module(target: str, force_refresh: bool = False):
                 and module.__file__
                 and module.__file__.startswith(target_dir)
             ):
-                del sys.modules[module_name]
+                sys.modules.pop(module_name, None)
 
     spec = util.spec_from_file_location(target, target)
     if not spec or not spec.loader:
@@ -319,11 +344,9 @@ def load_config():
     settings = load_settings()
 
     chainlit_server = os.environ.get("CHAINLIT_SERVER", "https://cloud.chainlit.io")
-    data_persistence = "CHAINLIT_API_KEY" in os.environ
 
     config = ChainlitConfig(
         chainlit_server=chainlit_server,
-        data_persistence=data_persistence,
         chainlit_prod_url=chainlit_prod_url,
         run=RunSettings(),
         **settings,

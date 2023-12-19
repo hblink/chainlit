@@ -1,4 +1,5 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from 'api/auth';
+import { Link } from 'react-router-dom';
 import { useRecoilValue, useSetRecoilState } from 'recoil';
 
 import KeyIcon from '@mui/icons-material/Key';
@@ -14,8 +15,6 @@ import {
   Typography
 } from '@mui/material';
 
-import { useAuth } from 'hooks/auth';
-
 import { projectSettingsState } from 'state/project';
 import { settingsState } from 'state/settings';
 
@@ -30,7 +29,6 @@ export default function UserMenu({ anchorEl, open, handleClose }: Props) {
   const pSettings = useRecoilValue(projectSettingsState);
   const setAppSettings = useSetRecoilState(settingsState);
   const requiredKeys = !!pSettings?.userEnv?.length;
-  const navigate = useNavigate();
 
   const userNameItem = user && (
     <ListItem key="user-name" sx={{ display: 'flex', flexDirection: 'column' }}>
@@ -38,7 +36,7 @@ export default function UserMenu({ anchorEl, open, handleClose }: Props) {
         {user.id}
       </Typography>
       <Typography width="100%" fontSize="13px" fontWeight={400}>
-        {user.username}
+        {user.identifier}
       </Typography>
     </ListItem>
   );
@@ -75,7 +73,6 @@ export default function UserMenu({ anchorEl, open, handleClose }: Props) {
       key="logout"
       onClick={() => {
         logout();
-        navigate('/');
         handleClose();
       }}
     >

@@ -1,39 +1,48 @@
+import { apiClient } from 'api';
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useRecoilValue } from 'recoil';
 
 import Page from 'pages/Page';
 
-import { ElementView, IMessageElement, useChat } from '@chainlit/components';
+import { IMessageElement, useApi, useChatData } from '@chainlit/react-client';
+import { ElementView } from '@chainlit/react-components';
 
 import { useQuery } from 'hooks/query';
-import { useApi } from 'hooks/useApi';
+
+import { projectSettingsState } from 'state/project';
 
 export default function Element() {
   const { id } = useParams();
   const query = useQuery();
-  const { elements } = useChat();
+  const { elements } = useChatData();
+  const pSettings = useRecoilValue(projectSettingsState);
 
   const [element, setElement] = useState<IMessageElement | null>(null);
+  const navigate = useNavigate();
 
-  const conversationId = query.get('conversation');
+  const threadId = query.get('thread');
+
+  const dataPersistence = pSettings?.dataPersistence;
 
   const { data, error } = useApi<IMessageElement>(
-    id && conversationId
-      ? `/project/conversation/${conversationId}/element/${id}`
+    apiClient,
+    id && threadId && dataPersistence
+      ? `/project/thread/${threadId}/element/${id}`
       : null
   );
 
   useEffect(() => {
     if (data) {
       setElement(data);
-    } else if (id && !conversationId && !element) {
+    } else if (id && !dataPersistence && !element) {
       const foundElement = elements.find((element) => element.id === id);
 
       if (foundElement) {
         setElement(foundElement);
       }
     }
-  }, [data, element, elements, id, conversationId]);
+  }, [data, element, elements, id, threadId]);
 
   if (!element || error) {
     return null;
@@ -41,7 +50,7 @@ export default function Element() {
 
   return (
     <Page>
-      <ElementView element={element} />
+      <ElementView element={element} onGoBack={() => navigate('/')} />
     </Page>
   );
 }
