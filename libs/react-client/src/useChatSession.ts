@@ -1,4 +1,4 @@
-import debounce from 'lodash/debounce';
+import { debounce } from 'lodash';
 import { useCallback } from 'react';
 import {
   useRecoilState,
@@ -15,7 +15,7 @@ import {
   chatSettingsInputsState,
   chatSettingsValueState,
   elementState,
-  firstUserMessageState,
+  firstUserInteraction,
   loadingState,
   messagesState,
   sessionIdState,
@@ -49,7 +49,7 @@ const useChatSession = () => {
   const [session, setSession] = useRecoilState(sessionState);
 
   const resetChatSettingsValue = useResetRecoilState(chatSettingsValueState);
-  const setFirstUserMessage = useSetRecoilState(firstUserMessageState);
+  const setFirstUserInteraction = useSetRecoilState(firstUserInteraction);
   const setLoading = useSetRecoilState(loadingState);
   const setMessages = useSetRecoilState(messagesState);
   const setAskUser = useSetRecoilState(askUserState);
@@ -139,8 +139,8 @@ const useChatSession = () => {
         setMessages((oldMessages) => addMessage(oldMessages, message));
       });
 
-      socket.on('init_thread', (message: IStep) => {
-        setFirstUserMessage(message);
+      socket.on('first_interaction', (interaction: string) => {
+        setFirstUserInteraction(interaction);
       });
 
       socket.on('update_message', (message: IStep) => {
@@ -265,7 +265,14 @@ const useChatSession = () => {
     }
   }, [session]);
 
-  return { connect, disconnect, chatProfile, idToResume, setChatProfile };
+  return {
+    connect,
+    disconnect,
+    session,
+    chatProfile,
+    idToResume,
+    setChatProfile
+  };
 };
 
 export { useChatSession };

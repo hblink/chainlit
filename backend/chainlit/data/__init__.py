@@ -29,7 +29,7 @@ def queue_until_user_message():
         async def wrapper(self, *args, **kwargs):
             if (
                 isinstance(context.session, WebsocketSession)
-                and not context.session.has_user_message
+                and not context.session.has_first_interaction
             ):
                 # Queue the method invocation waiting for the first user message
                 queues = context.session.thread_queues
@@ -128,6 +128,7 @@ class ChainlitDataLayer:
             "chainlitKey": None,
             "display": metadata.get("display", "side"),
             "language": metadata.get("language"),
+            "page": metadata.get("page"),
             "size": metadata.get("size"),
             "type": metadata.get("type", "file"),
             "forId": attachment.step_id,
@@ -230,11 +231,15 @@ class ChainlitDataLayer:
             "language": element.language,
             "display": element.display,
             "type": element.type,
+            "page": getattr(element, "page", None),
         }
+
+        if not element.for_id:
+            return
 
         await self.client.api.create_attachment(
             thread_id=element.thread_id,
-            step_id=element.for_id or "",
+            step_id=element.for_id,
             mime=element.mime,
             name=element.name,
             url=element.url,

@@ -36,14 +36,19 @@ class LlamaIndexCallbackHandler(TokenCountingHandler):
         )
         self.context = context_var.get()
 
+        if self.context.current_step:
+            self.root_parent_id = self.context.current_step.id
+        elif self.context.session.root_message:
+            self.root_parent_id = self.context.session.root_message.id
+        else:
+            self.root_parent_id = None
+
         self.steps = {}
 
     def _get_parent_id(self, event_parent_id: Optional[str] = None) -> Optional[str]:
         if event_parent_id and event_parent_id in self.steps:
             return event_parent_id
-        if root_message := self.context.session.root_message:
-            return root_message.id
-        return None
+        return self.root_parent_id
 
     def _restore_context(self) -> None:
         """Restore Chainlit context in the current thread
@@ -113,7 +118,7 @@ class LlamaIndexCallbackHandler(TokenCountingHandler):
                     [f"Source {idx}" for idx, _ in enumerate(sources)]
                 )
                 step.elements = [
-                    Text(name=f"Source {idx}", content=source.node.get_text())
+                    Text(name=f"Source {idx}", content=source.node.get_text() or "Empty node")
                     for idx, source in enumerate(sources)
                 ]
                 step.output = f"Retrieved the following sources: {source_refs}"

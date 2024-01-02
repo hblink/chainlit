@@ -89,6 +89,7 @@ async def connect(sid, environ, auth):
             token = authorization_header.split(" ")[1] if authorization_header else None
             user = await get_current_user(token=token)
     except Exception as e:
+        logger.info("Authentication failed")
         return False
 
     # Function to send a message to this particular session
@@ -138,8 +139,9 @@ async def connection_successful(sid):
     if context.session.thread_id_to_resume and config.code.on_chat_resume:
         thread = await resume_thread(context.session)
         if thread:
-            context.session.has_user_message = True
+            context.session.has_first_interaction = True
             await context.emitter.clear_ask()
+            await context.emitter.emit("first_interaction", "resume")
             await context.emitter.resume_thread(thread)
             await config.code.on_chat_resume(thread)
             return
@@ -173,7 +175,7 @@ async def disconnect(sid):
     if config.code.on_chat_end and session:
         await config.code.on_chat_end()
 
-    if session and session.thread_id and session.has_user_message:
+    if session and session.thread_id and session.has_first_interaction:
         await persist_user_session(session.thread_id, session.to_persistable())
 
     async def disconnect_on_timeout(sid):
