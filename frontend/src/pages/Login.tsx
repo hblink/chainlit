@@ -1,7 +1,7 @@
-import { apiClient } from 'api';
 import { useAuth } from 'api/auth';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useRecoilValue } from 'recoil';
 
 import { AuthLogin } from '@chainlit/react-components';
 
@@ -9,10 +9,13 @@ import { Logo } from 'components/atoms/logo';
 
 import { useQuery } from 'hooks/query';
 
+import { apiClientState } from 'state/apiClient';
+
 export default function Login() {
   const query = useQuery();
   const { data: config, setAccessToken, user } = useAuth();
   const [error, setError] = useState('');
+  const apiClient = useRecoilValue(apiClientState);
 
   const navigate = useNavigate();
 

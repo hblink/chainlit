@@ -1,6 +1,7 @@
 import glob
 import json
 import mimetypes
+import re
 import shutil
 import urllib.parse
 from typing import Any, Optional, Union
@@ -42,7 +43,16 @@ from chainlit.types import (
     UpdateFeedbackRequest,
 )
 from chainlit.user import PersistedUser, User
-from fastapi import Depends, FastAPI, HTTPException, Query, Request, UploadFile, status
+from fastapi import (
+    Depends,
+    FastAPI,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    UploadFile,
+    status,
+)
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
@@ -100,8 +110,8 @@ async def lifespan(app: FastAPI):
                                 load_module(config.run.module_name, force_refresh=True)
                             except Exception as e:
                                 logger.error(f"Error reloading module: {e}")
-                                break
 
+                        await asyncio.sleep(1)
                         await socket.emit("reload", {})
 
                         break
@@ -126,18 +136,19 @@ async def lifespan(app: FastAPI):
         os._exit(0)
 
 
-def get_build_dir():
-    local_build_dir = os.path.join(PACKAGE_ROOT, "frontend", "dist")
-    packaged_build_dir = os.path.join(BACKEND_ROOT, "frontend", "dist")
+def get_build_dir(local_target: str, packaged_target: str):
+    local_build_dir = os.path.join(PACKAGE_ROOT, local_target, "dist")
+    packaged_build_dir = os.path.join(BACKEND_ROOT, packaged_target, "dist")
     if os.path.exists(local_build_dir):
         return local_build_dir
     elif os.path.exists(packaged_build_dir):
         return packaged_build_dir
     else:
-        raise FileNotFoundError("Built UI dir not found")
+        raise FileNotFoundError(f"{local_target} built UI dir not found")
 
 
-build_dir = get_build_dir()
+build_dir = get_build_dir("frontend", "frontend")
+copilot_build_dir = get_build_dir(os.path.join("libs", "copilot"), "copilot")
 
 
 app = FastAPI(lifespan=lifespan)
@@ -152,15 +163,23 @@ app.mount(
     name="assets",
 )
 
+app.mount(
+    "/copilot",
+    StaticFiles(
+        packages=[("chainlit", copilot_build_dir)],
+        follow_symlink=config.project.follow_symlink,
+    ),
+    name="copilot",
+)
+
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=config.project.allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 socket = SocketManager(
     app,
@@ -172,6 +191,11 @@ socket = SocketManager(
 # -------------------------------------------------------------------------------
 #                               HTTP HANDLERS
 # -------------------------------------------------------------------------------
+
+
+def replace_between_tags(text: str, start_tag: str, end_tag: str, replacement: str):
+    pattern = start_tag + ".*?" + end_tag
+    return re.sub(pattern, start_tag + replacement + end_tag, text, flags=re.DOTALL)
 
 
 def get_html_template():
@@ -198,6 +222,10 @@ def get_html_template():
             f"""<link rel="stylesheet" type="text/css" href="{config.ui.custom_css}">"""
         )
 
+    font = None
+    if config.ui.custom_font:
+        font = f"""<link rel="stylesheet" href="{config.ui.custom_font}">"""
+
     index_html_file_path = os.path.join(build_dir, "index.html")
 
     with open(index_html_file_path, "r", encoding="utf-8") as f:
@@ -207,6 +235,10 @@ def get_html_template():
             content = content.replace(JS_PLACEHOLDER, js)
         if css:
             content = content.replace(CSS_PLACEHOLDER, css)
+        if font:
+            content = replace_between_tags(
+                content, "<!-- FONT START -->", "<!-- FONT END -->", font
+            )
         return content
 
 
@@ -257,11 +289,22 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
         )
     access_token = create_jwt(user)
     if data_layer := get_data_layer():
-        await data_layer.create_user(user)
+        try:
+            await data_layer.create_user(user)
+        except Exception as e:
+            logger.error(f"Error creating user: {e}")
+
     return {
         "access_token": access_token,
         "token_type": "bearer",
     }
+
+
+@app.post("/logout")
+async def logout(request: Request, response: Response):
+    if config.code.on_logout:
+        return await config.code.on_logout(request, response)
+    return {"success": True}
 
 
 @app.post("/auth/header")
@@ -282,7 +325,11 @@ async def header_auth(request: Request):
 
     access_token = create_jwt(user)
     if data_layer := get_data_layer():
-        await data_layer.create_user(user)
+        try:
+            await data_layer.create_user(user)
+        except Exception as e:
+            logger.error(f"Error creating user: {e}")
+
     return {
         "access_token": access_token,
         "token_type": "bearer",
@@ -318,8 +365,14 @@ async def oauth_login(provider_id: str, request: Request):
         url=f"{provider.authorize_url}?{params}",
     )
     samesite = os.environ.get("CHAINLIT_COOKIE_SAMESITE", "lax")  # type: Any
+    secure = samesite.lower() == "none"
     response.set_cookie(
-        "oauth_state", random, httponly=True, samesite=samesite, max_age=3 * 60
+        "oauth_state",
+        random,
+        httponly=True,
+        samesite=samesite,
+        secure=secure,
+        max_age=3 * 60,
     )
     return response
 
@@ -389,7 +442,10 @@ async def oauth_callback(
     access_token = create_jwt(user)
 
     if data_layer := get_data_layer():
-        await data_layer.create_user(user)
+        try:
+            await data_layer.create_user(user)
+        except Exception as e:
+            logger.error(f"Error creating user: {e}")
 
     params = urllib.parse.urlencode(
         {
@@ -441,9 +497,14 @@ async def get_providers(
 
 @app.get("/project/settings")
 async def project_settings(
-    current_user: Annotated[Union[User, PersistedUser], Depends(get_current_user)]
+    current_user: Annotated[Union[User, PersistedUser], Depends(get_current_user)],
+    language: str = Query(default="en-US", description="Language code"),
 ):
     """Return project settings. This is called by the UI before the establishing the websocket connection."""
+
+    # Load translation based on the provided language
+    translation = config.load_translation(language)
+
     profiles = []
     if config.code.set_chat_profiles:
         chat_profiles = await config.code.set_chat_profiles(current_user)
@@ -458,6 +519,7 @@ async def project_settings(
             "threadResumable": bool(config.code.on_chat_resume),
             "markdown": get_markdown_str(config.root),
             "chatProfiles": profiles,
+            "translation": translation,
         }
     )
 
@@ -599,7 +661,6 @@ async def upload_file(
 async def get_file(
     file_id: str,
     session_id: Optional[str] = None,
-    token: Optional[str] = None,
 ):
     from chainlit.session import WebsocketSession
 
@@ -610,13 +671,6 @@ async def get_file(
             status_code=404,
             detail="Session not found",
         )
-
-    if current_user := await get_current_user(token or ""):
-        if not session.user or session.user.identifier != current_user.identifier:
-            raise HTTPException(
-                status_code=401,
-                detail="You are not authorized to upload files for this session",
-            )
 
     if file_id in session.files:
         file = session.files[file_id]

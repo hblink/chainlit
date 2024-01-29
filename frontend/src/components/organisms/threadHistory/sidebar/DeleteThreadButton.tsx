@@ -1,4 +1,3 @@
-import { apiClient } from 'api';
 import { useState } from 'react';
 import { useRecoilValue } from 'recoil';
 import { toast } from 'sonner';
@@ -15,6 +14,10 @@ import DialogTitle from '@mui/material/DialogTitle';
 
 import { ClientError, accessTokenState } from '@chainlit/react-client';
 
+import { Translator } from 'components/i18n';
+
+import { apiClientState } from 'state/apiClient';
+
 interface Props {
   threadId: string;
   onDelete: () => void;
@@ -23,6 +26,7 @@ interface Props {
 const DeleteThreadButton = ({ threadId, onDelete }: Props) => {
   const [open, setOpen] = useState(false);
   const accessToken = useRecoilValue(accessTokenState);
+  const apiClient = useRecoilValue(apiClientState);
 
   const handleClickOpen = () => {
     setOpen(true);
@@ -34,10 +38,14 @@ const DeleteThreadButton = ({ threadId, onDelete }: Props) => {
 
   const handleConfirm = async () => {
     toast.promise(apiClient.deleteThread(threadId, accessToken), {
-      loading: 'Deleting chat',
+      loading: (
+        <Translator path="components.organisms.threadHistory.sidebar.DeleteThreadButton.deletingChat" />
+      ),
       success: () => {
         onDelete();
-        return 'Chat deleted!';
+        return (
+          <Translator path="components.organisms.threadHistory.sidebar.DeleteThreadButton.chatDeleted" />
+        );
       },
       error: (err) => {
         if (err instanceof ClientError) {
@@ -70,12 +78,12 @@ const DeleteThreadButton = ({ threadId, onDelete }: Props) => {
           <DialogTitle id="alert-dialog-title">{'Delete Thread?'}</DialogTitle>
           <DialogContent>
             <DialogContentText id="alert-dialog-description">
-              This will delete the thread as well as it's messages and elements.
+              <Translator path="components.organisms.threadHistory.sidebar.DeleteThreadButton.confirmMessage" />
             </DialogContentText>
           </DialogContent>
           <DialogActions sx={{ color: 'text.secondary', p: 2 }}>
             <Button variant="outlined" color="inherit" onClick={handleClose}>
-              Cancel
+              <Translator path="components.organisms.threadHistory.sidebar.DeleteThreadButton.cancel" />
             </Button>
             <LoadingButton
               variant="outlined"
@@ -83,7 +91,7 @@ const DeleteThreadButton = ({ threadId, onDelete }: Props) => {
               onClick={handleConfirm}
               autoFocus
             >
-              Confirm
+              <Translator path="components.organisms.threadHistory.sidebar.DeleteThreadButton.confirm" />
             </LoadingButton>
           </DialogActions>
         </Dialog>

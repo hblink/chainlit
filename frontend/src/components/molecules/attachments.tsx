@@ -9,6 +9,7 @@ import Tooltip from '@mui/material/Tooltip';
 import { Attachment } from '@chainlit/react-components';
 
 import CircularProgressIconButton from 'components/atoms/buttons/progressIconButton';
+import { Translator } from 'components/i18n';
 
 import { attachmentsState } from 'state/chat';
 
@@ -31,7 +32,11 @@ const Attachments = (): JSX.Element => {
         const showProgress = !attachment.uploaded && attachment.cancel;
 
         const progress = showProgress ? (
-          <Tooltip title="Cancel upload">
+          <Tooltip
+            title={
+              <Translator path="components.molecules.attachments.cancelUpload" />
+            }
+          >
             <Box
               sx={{
                 position: 'absolute',
@@ -52,7 +57,16 @@ const Attachments = (): JSX.Element => {
                   }
                 }}
               >
-                <Close sx={{ height: 20, width: 20 }} />
+                <Close
+                  sx={(theme) => ({
+                    height: 20,
+                    width: 20,
+                    [theme.breakpoints.down('sm')]: {
+                      height: 12,
+                      width: 12
+                    }
+                  })}
+                />
               </CircularProgressIconButton>
             </Box>
           </Tooltip>
@@ -60,7 +74,11 @@ const Attachments = (): JSX.Element => {
 
         const remove =
           !showProgress && attachment.remove ? (
-            <Tooltip title="Remove attachment">
+            <Tooltip
+              title={
+                <Translator path="components.molecules.attachments.removeAttachment" />
+              }
+            >
               <IconButton
                 sx={{
                   position: 'absolute',
@@ -76,7 +94,16 @@ const Attachments = (): JSX.Element => {
                 }}
                 onClick={attachment.remove}
               >
-                <Close sx={{ height: 20, width: 20 }} />
+                <Close
+                  sx={(theme) => ({
+                    height: 20,
+                    width: 20,
+                    [theme.breakpoints.down('sm')]: {
+                      height: 12,
+                      width: 12
+                    }
+                  })}
+                />
               </IconButton>
             </Tooltip>
           ) : null;

@@ -4,7 +4,6 @@ import { useRef, useState } from 'react';
 import { useRecoilState } from 'recoil';
 
 import AutoDelete from '@mui/icons-material/AutoDelete';
-import KeyboardDoubleArrowUpIcon from '@mui/icons-material/KeyboardDoubleArrowUp';
 import {
   IconButton,
   Menu,
@@ -16,6 +15,10 @@ import {
 
 import { UserInput } from '@chainlit/react-client';
 import { grey } from '@chainlit/react-components/theme';
+
+import { Translator } from 'components/i18n';
+
+import ChevronUpIcon from 'assets/chevronUp';
 
 import { inputHistoryState } from 'state/userInputHistory';
 
@@ -91,7 +94,7 @@ export default function InputHistoryButton({ disabled, onClick }: Props) {
         color="text.primary"
         sx={{ fontSize: '14px', fontWeight: 700 }}
       >
-        Last inputs
+        <Translator path="components.organisms.chat.history.index.lastInputs" />
       </Typography>
       <IconButton
         onClick={() => setInputHistory((old) => ({ ...old, inputs: [] }))}
@@ -114,7 +117,7 @@ export default function InputHistoryButton({ disabled, onClick }: Props) {
             textTransform: 'uppercase'
           }}
         >
-          Such empty...
+          <Translator path="components.organisms.chat.history.index.noInputs" />
         </Typography>
       </div>
     ) : null;
@@ -131,7 +134,7 @@ export default function InputHistoryButton({ disabled, onClick }: Props) {
           textTransform: 'uppercase'
         }}
       >
-        Loading...
+        <Translator path="components.organisms.chat.history.index.loading" />
       </Typography>
     </div>
   ) : null;
@@ -247,7 +250,7 @@ export default function InputHistoryButton({ disabled, onClick }: Props) {
             onClick={() => toggleChatHistoryMenu(!inputHistory.open)}
             ref={ref}
           >
-            <KeyboardDoubleArrowUpIcon />
+            <ChevronUpIcon />
           </IconButton>
         </span>
       </Tooltip>

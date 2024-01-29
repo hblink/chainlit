@@ -6,11 +6,11 @@ from chainlit.context import context_var
 from chainlit.message import Message
 from chainlit.playground.providers.openai import stringify_function_call
 from chainlit.step import Step, TrueStepType
-from chainlit_client import ChatGeneration, CompletionGeneration, GenerationMessage
 from langchain.callbacks.tracers.base import BaseTracer
 from langchain.callbacks.tracers.schemas import Run
 from langchain.schema import BaseMessage
 from langchain.schema.output import ChatGenerationChunk, GenerationChunk
+from literalai import ChatGeneration, CompletionGeneration, GenerationMessage
 
 DEFAULT_ANSWER_PREFIX_TOKENS = ["Final", "Answer", ":"]
 
@@ -353,7 +353,7 @@ class GenerationHelper:
         return provider, settings
 
 
-DEFAULT_TO_IGNORE = ["RunnableSequence", "RunnableParallel", "<lambda>"]
+DEFAULT_TO_IGNORE = ["Runnable", "<lambda>"]
 DEFAULT_TO_KEEP = ["retriever", "llm", "agent", "chain", "tool"]
 
 
@@ -442,8 +442,13 @@ class LangchainTracer(BaseTracer, GenerationHelper, FinalStreamHelper):
             # so we can re-attach a kept child to the right parent id
             self.parent_id_map[str(run.id)] = parent_id
 
-        ignore_by_name = run.name in self.to_ignore
+        ignore_by_name = False
         ignore_by_parent = parent_id in self.ignored_runs
+
+        for filter in self.to_ignore:
+            if filter in run.name:
+                ignore_by_name = True
+                break
 
         ignore = ignore_by_name or ignore_by_parent
 

@@ -1,10 +1,12 @@
 import { useRecoilValue } from 'recoil';
 
 import AttachFile from '@mui/icons-material/AttachFile';
-import { IconButton, Tooltip } from '@mui/material';
+import { IconButton, Theme, Tooltip, useMediaQuery } from '@mui/material';
 
 import { FileSpec } from '@chainlit/react-client';
 import { useUpload } from '@chainlit/react-components';
+
+import { Translator } from 'components/i18n';
 
 import { projectSettingsState } from 'state/project';
 
@@ -30,20 +32,29 @@ const UploadButton = ({
     options: { noDrag: true }
   });
 
+  const size = useMediaQuery<Theme>((theme) => theme.breakpoints.down('sm'))
+    ? 'small'
+    : 'medium';
+
   if (!upload || !pSettings?.features?.multi_modal) return null;
   const { getRootProps, getInputProps } = upload;
 
   return (
-    <Tooltip title="Attach files">
+    <Tooltip
+      title={
+        <Translator path="components.organisms.chat.inputBox.UploadButton.attachFiles" />
+      }
+    >
       <span>
         <input id="upload-button-input" {...getInputProps()} />
         <IconButton
           id={disabled ? 'upload-button-loading' : 'upload-button'}
           disabled={disabled}
           color="inherit"
+          size={size}
           {...getRootProps({ className: 'dropzone' })}
         >
-          <AttachFile />
+          <AttachFile fontSize={size} />
         </IconButton>
       </span>
     </Tooltip>

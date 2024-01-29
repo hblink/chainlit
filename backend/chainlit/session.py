@@ -2,15 +2,28 @@ import json
 import mimetypes
 import shutil
 import uuid
-from typing import TYPE_CHECKING, Any, Callable, Deque, Dict, List, Optional, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Deque,
+    Dict,
+    List,
+    Literal,
+    Optional,
+    Union,
+)
 
 import aiofiles
+from chainlit.logger import logger
 
 if TYPE_CHECKING:
     from chainlit.message import Message
     from chainlit.step import Step
     from chainlit.types import FileDict, FileReference
     from chainlit.user import PersistedUser, User
+
+ClientType = Literal["app", "copilot", "teams", "slack"]
 
 
 class JSONEncoderIgnoreNonSerializable(json.JSONEncoder):
@@ -32,11 +45,13 @@ class BaseSession:
 
     active_steps: List["Step"]
     thread_id_to_resume: Optional[str] = None
+    client_type: ClientType
 
     def __init__(
         self,
         # Id of the session
         id: str,
+        client_type: ClientType,
         # Thread id
         thread_id: Optional[str],
         # Logged-in user informations
@@ -54,6 +69,7 @@ class BaseSession:
             self.thread_id_to_resume = thread_id
         self.thread_id = thread_id or str(uuid.uuid4())
         self.user = user
+        self.client_type = client_type
         self.token = token
         self.root_message = root_message
         self.has_first_interaction = False
@@ -91,6 +107,7 @@ class HTTPSession(BaseSession):
         self,
         # Id of the session
         id: str,
+        client_type: ClientType,
         # Thread id
         thread_id: Optional[str] = None,
         # Logged-in user informations
@@ -107,6 +124,7 @@ class HTTPSession(BaseSession):
             thread_id=thread_id,
             user=user,
             token=token,
+            client_type=client_type,
             user_env=user_env,
             root_message=root_message,
         )
@@ -130,12 +148,13 @@ class WebsocketSession(BaseSession):
         id: str,
         # Associated socket id
         socket_id: str,
-        # Function to emit a message to the user
+        # Function to emit to the client
         emit: Callable[[str, Any], None],
-        # Function to ask the user a question
-        ask_user: Callable[[Any, Optional[int]], Any],
+        # Function to emit to the client and wait for a response
+        emit_call: Callable[[Literal["ask", "call_fn"], Any, Optional[int]], Any],
         # User specific environment variables. Empty if no user environment variables are required.
         user_env: Dict[str, str],
+        client_type: ClientType,
         # Thread id
         thread_id: Optional[str] = None,
         # Logged-in user informations
@@ -153,12 +172,13 @@ class WebsocketSession(BaseSession):
             user=user,
             token=token,
             user_env=user_env,
+            client_type=client_type,
             root_message=root_message,
             chat_profile=chat_profile,
         )
 
         self.socket_id = socket_id
-        self.ask_user = ask_user
+        self.emit_call = emit_call
         self.emit = emit
 
         self.should_stop = False
@@ -242,7 +262,10 @@ class WebsocketSession(BaseSession):
         for method_name, queue in self.thread_queues.items():
             while queue:
                 method, self, args, kwargs = queue.popleft()
-                await method(self, *args, **kwargs)
+                try:
+                    await method(self, *args, **kwargs)
+                except Exception as e:
+                    logger.error(f"Error while flushing {method_name}: {e}")
 
     @classmethod
     def get(cls, socket_id: str):

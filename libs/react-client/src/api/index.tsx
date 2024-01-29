@@ -43,6 +43,7 @@ type Payload = FormData | any;
 export class APIBase {
   constructor(
     public httpEndpoint: string,
+    public type: 'app' | 'copilot' | 'teams' | 'slack',
     public on401?: () => void,
     public onError?: (error: ClientError) => void
   ) {}
@@ -145,6 +146,11 @@ export class ChainlitAPI extends APIBase {
 
   async passwordAuth(data: FormData) {
     const res = await this.post(`/login`, data);
+    return res.json();
+  }
+
+  async logout() {
+    const res = await this.post(`/logout`, {});
     return res.json();
   }
 
@@ -279,14 +285,8 @@ export class ChainlitAPI extends APIBase {
     return { xhr, promise };
   }
 
-  getElementUrl(id: string, sessionId: string, accessToken?: string) {
-    let queryParams = `?session_id=${sessionId}`;
-    if (accessToken) {
-      if (accessToken.startsWith('Bearer ')) {
-        accessToken = accessToken.slice(7);
-      }
-      queryParams += `&token=${accessToken}`;
-    }
+  getElementUrl(id: string, sessionId: string) {
+    const queryParams = `?session_id=${sessionId}`;
     return this.buildEndpoint(`/project/file/${id}${queryParams}`);
   }
 

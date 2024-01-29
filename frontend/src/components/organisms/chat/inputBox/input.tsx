@@ -1,8 +1,8 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useRecoilState, useSetRecoilState } from 'recoil';
 import 'regenerator-runtime';
 
-import SendIcon from '@mui/icons-material/Telegram';
 import TuneIcon from '@mui/icons-material/Tune';
 import { Box, IconButton, Stack, TextField } from '@mui/material';
 import InputAdornment from '@mui/material/InputAdornment';
@@ -16,6 +16,7 @@ import { IAttachment, attachmentsState } from 'state/chat';
 import { chatSettingsOpenState, projectSettingsState } from 'state/project';
 import { inputHistoryState } from 'state/userInputHistory';
 
+import { SubmitButton } from './SubmitButton';
 import UploadButton from './UploadButton';
 import SpeechButton from './speechButton';
 
@@ -57,6 +58,8 @@ const Input = memo(
     const [isComposing, setIsComposing] = useState(false);
 
     const showTextToSpeech = pSettings?.features.speech_to_text?.enabled;
+
+    const { t } = useTranslation();
 
     useEffect(() => {
       const pasteEvent = (event: ClipboardEvent) => {
@@ -139,6 +142,12 @@ const Input = memo(
     const startAdornment = (
       <>
         <HistoryButton disabled={disabled} onClick={onHistoryClick} />
+        <UploadButton
+          disabled={disabled}
+          fileSpec={fileSpec}
+          onFileUploadError={onFileUploadError}
+          onFileUpload={onFileUpload}
+        />
         {chatSettingsInputs.length > 0 && (
           <IconButton
             id="chat-settings-open-modal"
@@ -156,18 +165,7 @@ const Input = memo(
             disabled={disabled}
           />
         ) : null}
-        <UploadButton
-          disabled={disabled}
-          fileSpec={fileSpec}
-          onFileUploadError={onFileUploadError}
-          onFileUpload={onFileUpload}
-        />
       </>
-    );
-    const endAdornment = (
-      <IconButton disabled={disabled} color="inherit" onClick={() => submit()}>
-        <SendIcon />
-      </IconButton>
     );
 
     return (
@@ -208,7 +206,9 @@ const Input = memo(
           multiline
           variant="standard"
           autoComplete="false"
-          placeholder={'Type your message here...'}
+          placeholder={t(
+            'components.organisms.chat.inputBox.input.placeholder'
+          )}
           disabled={disabled}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -227,12 +227,7 @@ const Input = memo(
               </InputAdornment>
             ),
             endAdornment: (
-              <InputAdornment
-                position="end"
-                sx={{ mr: 1, color: 'text.secondary' }}
-              >
-                {endAdornment}
-              </InputAdornment>
+              <SubmitButton onSubmit={submit} disabled={disabled || !value} />
             )
           }}
         />

@@ -1,13 +1,11 @@
-import { apiClient } from 'api';
 import { useAuth } from 'api/auth';
 import isEqual from 'lodash/isEqual';
 import uniqBy from 'lodash/uniqBy';
 import { useEffect, useRef, useState } from 'react';
 import { useRecoilState, useRecoilValue } from 'recoil';
 
-import KeyboardDoubleArrowLeftIcon from '@mui/icons-material/KeyboardDoubleArrowLeft';
+import Box from '@mui/material/Box';
 import Drawer from '@mui/material/Drawer';
-import IconButton from '@mui/material/IconButton';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
@@ -18,11 +16,15 @@ import {
   threadHistoryState
 } from '@chainlit/react-client';
 
+import { Translator } from 'components/i18n';
+
+import { apiClientState } from 'state/apiClient';
 import { projectSettingsState } from 'state/project';
 import { settingsState } from 'state/settings';
 import { threadsFiltersState } from 'state/threads';
 
 import { ThreadList } from './ThreadList';
+import TriggerButton from './TriggerButton';
 import Filters from './filters';
 
 const DRAWER_WIDTH = 260;
@@ -43,6 +45,7 @@ const _ThreadHistorySideBar = () => {
   const [prevFilters, setPrevFilters] = useState<IThreadFilters>(filters);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
+  const apiClient = useRecoilValue(apiClientState);
 
   const ref = useRef<HTMLDivElement>(null);
   const filtersHasChanged = !isEqual(prevFilters, filters);
@@ -127,7 +130,7 @@ const _ThreadHistorySideBar = () => {
   }, []);
 
   return (
-    <>
+    <Box display="flex" position="relative">
       <Drawer
         className="chat-history-drawer"
         anchor="left"
@@ -147,7 +150,12 @@ const _ThreadHistorySideBar = () => {
             gap: 1,
             display: 'flex',
             padding: '0px 4px',
-            backgroundImage: 'none'
+            backgroundImage: 'none',
+            borderRight: 'none',
+            boxShadow: (theme) =>
+              theme.palette.mode === 'dark'
+                ? '0px 4px 20px 0px rgba(0, 0, 0, 0.20)'
+                : '0px 4px 20px 0px rgba(0, 0, 0, 0.05)'
           }
         }}
       >
@@ -167,11 +175,8 @@ const _ThreadHistorySideBar = () => {
               color: (theme) => theme.palette.text.primary
             }}
           >
-            Past Chats
+            <Translator path="components.organisms.threadHistory.sidebar.index.pastChats" />
           </Typography>
-          <IconButton edge="end" onClick={() => setChatHistoryOpen(false)}>
-            <KeyboardDoubleArrowLeftIcon sx={{ color: 'text.primary' }} />
-          </IconButton>
         </Stack>
         <Filters />
         {threadHistory ? (
@@ -184,7 +189,23 @@ const _ThreadHistorySideBar = () => {
           />
         ) : null}
       </Drawer>
-    </>
+      {!isMobile ? (
+        <Box
+          position="absolute"
+          sx={{
+            top: '50%',
+            transform: 'translateY(-100%)',
+            right: -30,
+            zIndex: 10
+          }}
+        >
+          <TriggerButton
+            onClick={() => setChatHistoryOpen(!settings.isChatHistoryOpen)}
+            open={settings.isChatHistoryOpen}
+          />
+        </Box>
+      ) : null}
+    </Box>
   );
 };
 

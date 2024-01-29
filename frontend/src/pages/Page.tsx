@@ -4,9 +4,9 @@ import { useRecoilValue } from 'recoil';
 
 import { Alert, Box, Stack } from '@mui/material';
 
+import { Translator } from 'components/i18n';
 import { Header } from 'components/organisms/header';
 import { ThreadHistorySideBar } from 'components/organisms/threadHistory/sidebar';
-import OpenChatHistoryButton from 'components/organisms/threadHistory/sidebar/OpenThreadListButton';
 
 import { projectSettingsState } from 'state/project';
 import { userEnvState } from 'state/user';
@@ -40,11 +40,12 @@ const Page = ({ children }: Props) => {
     >
       <Header projectSettings={projectSettings} />
       {!isAuthenticated ? (
-        <Alert severity="error">You are not part of this project.</Alert>
+        <Alert severity="error">
+          <Translator path="pages.Page.notPartOfProject" />
+        </Alert>
       ) : (
         <Stack direction="row" height="100%" width="100%" overflow="auto">
           <ThreadHistorySideBar />
-          <OpenChatHistoryButton mode={'desktop'} />
           {children}
         </Stack>
       )}

@@ -2,14 +2,18 @@ import { useRecoilValue } from 'recoil';
 
 import { Stack, Typography } from '@mui/material';
 
-import LogoDark from 'assets/logo_dark.svg';
-import LogoLight from 'assets/logo_light.svg';
+import { Translator } from 'components/i18n';
+
+import 'assets/logo_dark.svg';
+import LogoDark from 'assets/logo_dark.svg?react';
+import 'assets/logo_light.svg';
+import LogoLight from 'assets/logo_light.svg?react';
 
 import { settingsState } from 'state/settings';
 
 export default function WaterMark() {
   const { theme } = useRecoilValue(settingsState);
-  const src = theme === 'light' ? LogoLight : LogoDark;
+  const Logo = theme === 'light' ? LogoLight : LogoDark;
   return (
     <Stack mx="auto" className="watermark">
       <a
@@ -22,12 +26,15 @@ export default function WaterMark() {
         }}
       >
         <Typography fontSize="12px" color="text.secondary">
-          Built with
+          <Translator path="components.organisms.chat.inputBox.waterMark.text" />
         </Typography>
-        <img
-          src={src}
-          alt="watermark"
-          style={{ width: 65, filter: 'grayscale(1)', marginLeft: '4px' }}
+        <Logo
+          style={{
+            width: 65,
+            height: 'auto',
+            filter: 'grayscale(1)',
+            marginLeft: '4px'
+          }}
         />
       </a>
     </Stack>

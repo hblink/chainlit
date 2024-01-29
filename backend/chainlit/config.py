@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 from importlib import util
@@ -8,17 +9,19 @@ import tomli
 from chainlit.logger import logger
 from chainlit.version import __version__
 from dataclasses_json import DataClassJsonMixin
-from pydantic.dataclasses import dataclass
+from pydantic.dataclasses import Field, dataclass
 from starlette.datastructures import Headers
 
 if TYPE_CHECKING:
     from chainlit.action import Action
     from chainlit.types import ChatProfile, ThreadDict
     from chainlit.user import User
+    from fastapi import Request, Response
 
 
 BACKEND_ROOT = os.path.dirname(__file__)
 PACKAGE_ROOT = os.path.dirname(os.path.dirname(BACKEND_ROOT))
+TRANSLATIONS_DIR = os.path.join(BACKEND_ROOT, "translations")
 
 
 # Get the directory the script is running from
@@ -30,11 +33,13 @@ FILES_DIRECTORY.mkdir(exist_ok=True)
 
 config_dir = os.path.join(APP_ROOT, ".chainlit")
 config_file = os.path.join(config_dir, "config.toml")
+config_translation_dir = os.path.join(config_dir, "translations")
 
 # Default config file created if none exists
 DEFAULT_CONFIG_STR = f"""[project]
 # Whether to enable telemetry (default: true). No personal data is collected.
 enable_telemetry = true
+
 
 # List of environment variables to be provided by each user to use the app.
 user_env = []
@@ -44,6 +49,9 @@ session_timeout = 3600
 
 # Enable third parties caching (e.g LangChain cache)
 cache = false
+
+# Authorized origins 
+allow_origins = ["*"]
 
 # Follow symlink for asset mount (see https://github.com/Chainlit/chainlit/issues/317)
 # follow_symlink = false
@@ -93,7 +101,12 @@ hide_cot = false
 # The CSS file can be served from the public directory or via an external link.
 # custom_css = "/public/test.css"
 
+# Specify a custom font url.
+# custom_font = "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap"
+
 # Override default MUI light theme. (Check theme.ts)
+[UI.theme]
+    #font_family = "Inter, sans-serif"
 [UI.theme.light]
     #background = "#FAFAFA"
     #paper = "#FFFFFF"
@@ -152,6 +165,7 @@ class Palette(DataClassJsonMixin):
 
 @dataclass()
 class Theme(DataClassJsonMixin):
+    font_family: Optional[str] = None
     light: Optional[Palette] = None
     dark: Optional[Palette] = None
 
@@ -184,6 +198,7 @@ class UISettings(DataClassJsonMixin):
     theme: Optional[Theme] = None
     # Optional custom CSS file that allows you to customize the UI
     custom_css: Optional[str] = None
+    custom_font: Optional[str] = None
 
 
 @dataclass()
@@ -198,6 +213,7 @@ class CodeSettings:
     oauth_callback: Optional[
         Callable[[str, str, Dict[str, str], "User"], Optional["User"]]
     ] = None
+    on_logout: Optional[Callable[["Request", "Response"], Any]] = None
     on_stop: Optional[Callable[[], Any]] = None
     on_chat_start: Optional[Callable[[], Any]] = None
     on_chat_end: Optional[Callable[[], Any]] = None
@@ -212,6 +228,7 @@ class CodeSettings:
 
 @dataclass()
 class ProjectSettings(DataClassJsonMixin):
+    allow_origins: List[str] = Field(default_factory=lambda: ["*"])
     enable_telemetry: bool = True
     # List of environment variables to be provided by each user to use the app. If empty, no environment variables will be asked to the user.
     user_env: Optional[List[str]] = None
@@ -238,6 +255,29 @@ class ChainlitConfig:
     project: ProjectSettings
     code: CodeSettings
 
+    def load_translation(self, language: str):
+        translation = {}
+        default_language = "en-US"
+
+        translation_lib_file_path = os.path.join(
+            config_translation_dir, f"{language}.json"
+        )
+        default_translation_lib_file_path = os.path.join(
+            config_translation_dir, f"{default_language}.json"
+        )
+
+        if os.path.exists(translation_lib_file_path):
+            with open(translation_lib_file_path, "r", encoding="utf-8") as f:
+                translation = json.load(f)
+        elif os.path.exists(default_translation_lib_file_path):
+            logger.warning(
+                f"Translation file for {language} not found. Using default translation {default_language}."
+            )
+            with open(default_translation_lib_file_path, "r", encoding="utf-8") as f:
+                translation = json.load(f)
+
+        return translation
+
 
 def init_config(log=False):
     """Initialize the configuration file if it doesn't exist."""
@@ -248,6 +288,23 @@ def init_config(log=False):
             logger.info(f"Created default config file at {config_file}")
     elif log:
         logger.info(f"Config file already exists at {config_file}")
+
+    if not os.path.exists(config_translation_dir):
+        os.makedirs(config_translation_dir, exist_ok=True)
+        logger.info(
+            f"Created default translation directory at {config_translation_dir}"
+        )
+
+    for file in os.listdir(TRANSLATIONS_DIR):
+        if file.endswith(".json"):
+            dst = os.path.join(config_translation_dir, file)
+            if not os.path.exists(dst):
+                src = os.path.join(TRANSLATIONS_DIR, file)
+                with open(src, "r", encoding="utf-8") as f:
+                    translation = json.load(f)
+                    with open(dst, "w", encoding="utf-8") as f:
+                        json.dump(translation, f, indent=4)
+                        logger.info(f"Created default translation file at {dst}")
 
 
 def load_module(target: str, force_refresh: bool = False):

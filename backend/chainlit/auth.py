@@ -20,7 +20,7 @@ def get_jwt_secret():
 def ensure_jwt_secret():
     if require_login() and get_jwt_secret() is None:
         raise ValueError(
-            "You must provide a JWT secret in the environment to use password authentication. Run `chainlit create-secret` to generate one."
+            "You must provide a JWT secret in the environment to use authentication. Run `chainlit create-secret` to generate one."
         )
 
 
@@ -74,10 +74,10 @@ async def authenticate_user(token: str = Depends(reuseable_oauth)):
     if data_layer := get_data_layer():
         try:
             persisted_user = await data_layer.get_user(user.identifier)
+            if persisted_user == None:
+                persisted_user = await data_layer.create_user(user)
         except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
-        if persisted_user == None:
-            raise HTTPException(status_code=401, detail="User does not exist")
+            return user
 
         return persisted_user
     else:

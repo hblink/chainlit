@@ -1,4 +1,4 @@
-import { useRecoilState } from 'recoil';
+import { useRecoilState, useRecoilValue } from 'recoil';
 
 import DarkModeOutlined from '@mui/icons-material/DarkModeOutlined';
 import EmojiObjectsIcon from '@mui/icons-material/EmojiObjects';
@@ -16,9 +16,13 @@ import {
 
 import { SwitchInput } from '@chainlit/react-components';
 
+import { Translator } from 'components/i18n';
+
+import { projectSettingsState } from 'state/project';
 import { settingsState } from 'state/settings';
 
 export default function SettingsModal() {
+  const projectSettings = useRecoilValue(projectSettingsState);
   const [settings, setSettings] = useRecoilState(settingsState);
 
   return (
@@ -41,7 +45,12 @@ export default function SettingsModal() {
             <ListItemIcon>
               <ExpandIcon />
             </ListItemIcon>
-            <ListItemText id="list-expand-all" primary="Expand Messages" />
+            <ListItemText
+              id="list-expand-all"
+              primary={
+                <Translator path="components.molecules.settingsModal.expandMessages" />
+              }
+            />
             <Box>
               <SwitchInput
                 id="switch-expand-all"
@@ -55,29 +64,41 @@ export default function SettingsModal() {
               />
             </Box>
           </ListItem>
-          <ListItem sx={{ display: 'flex', gap: 2 }}>
-            <ListItemIcon>
-              <EmojiObjectsIcon />
-            </ListItemIcon>
-            <ListItemText id="hide-cot" primary="Hide Chain of Thought" />
-            <Box>
-              <SwitchInput
-                id="switch-hide-cot"
-                onChange={() =>
-                  setSettings((old) => ({ ...old, hideCot: !old.hideCot }))
+          {projectSettings?.ui.hide_cot ? null : (
+            <ListItem sx={{ display: 'flex', gap: 2 }}>
+              <ListItemIcon>
+                <EmojiObjectsIcon />
+              </ListItemIcon>
+              <ListItemText
+                id="hide-cot"
+                primary={
+                  <Translator path="components.molecules.settingsModal.hideChainOfThought" />
                 }
-                checked={settings.hideCot}
-                inputProps={{
-                  'aria-labelledby': 'hide-cot'
-                }}
               />
-            </Box>
-          </ListItem>
+              <Box>
+                <SwitchInput
+                  id="switch-hide-cot"
+                  onChange={() =>
+                    setSettings((old) => ({ ...old, hideCot: !old.hideCot }))
+                  }
+                  checked={settings.hideCot}
+                  inputProps={{
+                    'aria-labelledby': 'hide-cot'
+                  }}
+                />
+              </Box>
+            </ListItem>
+          )}
           <ListItem sx={{ display: 'flex', gap: 2 }}>
             <ListItemIcon>
               <DarkModeOutlined />
             </ListItemIcon>
-            <ListItemText id="switch-theme" primary="Dark mode" />
+            <ListItemText
+              id="switch-theme"
+              primary={
+                <Translator path="components.molecules.settingsModal.darkMode" />
+              }
+            />
             <Box>
               <SwitchInput
                 id="switch-theme"
